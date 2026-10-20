@@ -26,7 +26,7 @@ ordres de grandeur de données.
 | Sujet | Décision | Raison |
 |---|---|---|
 | Forme | App desktop native (Tauri) | Choix de l'utilisateur. Risque : exécutable non signé bloqué sur Windows verrouillé → l'interface web doit aussi pouvoir être servie en local dans un navigateur (repli). Au travail, ce mode servi par le paquet Python (`engramme serve`, sous-projet 2) sera probablement le mode principal. |
-| Distribution | Paquet Python : cœur Rust exposé par PyO3, construit avec maturin (wheel `abi3`, Python ≥ 3.9) ; wheels macOS et Windows (`win_amd64`, compilée par compilation croisée depuis le Mac) publiées dans les releases GitHub | Rust n'est pas installable sur le poste pro, Python l'est ; au travail, la wheel est téléchargée puis installée à la main (`pip install fichier.whl`). Le lanceur `engramme` est un lanceur pip standard, pas un exécutable non signé. |
+| Distribution | Paquet Python : cœur Rust exposé par PyO3, construit avec maturin (wheel `abi3`, Python ≥ 3.9) ; wheels macOS et Windows (`win_amd64`) construites et testées en natif par une CI GitHub Actions (`maturin-action`), qui publie les releases GitHub | Rust n'est pas installable sur le poste pro, Python l'est ; au travail, la wheel est téléchargée puis installée à la main (`pip install fichier.whl`). Le lanceur `engramme` est un lanceur pip standard, pas un exécutable non signé. |
 | Langue | Livrables publics (README, `docs/format.md`, skill, messages de la CLI) en anglais ; documents de conception internes en français | Le dépôt est public et réutilisable. |
 | Stack | Rust (cœur) + Tauri + React/TypeScript (interface) | `fsrs-rs` est l'implémentation de référence ; binaire léger sans runtime ; empaquetage Python trop fragile sous Windows. |
 | Source de vérité du contenu | Fichiers Markdown dans un dossier (la « base ») | Lisibles et modifiables par l'humain et par tous les agents ; versionnables avec git ; base du knowledge management. |
@@ -299,8 +299,9 @@ consécutifs (ex. c1 et c3 sans c2).
   invalide, le code est 1 et le diagnostic indique le bon fichier et la bonne
   ligne.
 - **Wheels** : la wheel macOS, installée dans un environnement isolé, valide
-  `examples/savoir`. La wheel Windows ne peut pas être testée sur le Mac ; sa
-  validation est le premier `pip install` sur le poste pro.
+  `examples/savoir`. La CI installe chaque wheel (macOS et Windows) et valide la base
+  d'exemple. Le premier `pip install` sur le poste pro reste la validation
+  finale : il dépend des règles du poste, pas seulement de la wheel.
 - **Skill** : il n'existe pas de test automatique crédible. Critères à l'usage,
   après deux semaines de travail réel : des propositions arrivent ; 100 %
   passent `check` ; le taux de rejet, mesuré au tri manuel, est noté et
