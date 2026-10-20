@@ -3,6 +3,7 @@
 //! [`parse_note`] is pure: it takes a path and the file contents. [`read_note`]
 //! is the only function that reads from disk.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 mod block;
 mod cloze;

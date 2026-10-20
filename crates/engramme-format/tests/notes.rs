@@ -1,3 +1,40 @@
+//! Note parsing: one test per rule of the v1 format (spec §3.1–3.3) and per
+//! note-level diagnostic (§5).
+//!
+//! Rule → tests
+//! - §3.1 UTF-8, LF and CRLF, BOM: `crlf_and_bom_are_accepted`, `fixtures_ignore_line_endings_and_bom`
+//! - §3.1 invalid UTF-8 or unreadable file: `read_note_reports_unreadable_files`
+//! - §3.2 optional frontmatter: `note_without_frontmatter`, `empty_frontmatter_is_valid`, `dashes_after_line_1_are_markdown`
+//! - §3.2 `title` string, else first `#`, else file stem: `title_from_frontmatter_beats_heading`, `blank_frontmatter_title_falls_back`, `title_from_first_heading`, `title_from_file_stem`, `title_must_be_a_string`
+//! - §3.2 `tags` and `sources`: `frontmatter_keys_are_parsed`, `null_values_count_as_absent`, `yaml_1_1_booleans_stay_strings`, `tags_must_be_a_list_of_strings`, `sources_must_be_a_list_of_strings`
+//! - §3.2 unknown keys kept and ignored: `unknown_keys_are_kept_in_extra`
+//! - §3.2 invalid YAML: `invalid_yaml_reports_file_line`, `duplicate_key_is_invalid_yaml`, `frontmatter_must_be_a_mapping`, `unclosed_frontmatter`
+//! - §3.2 free Markdown and LaTeX: `latex_and_markdown_do_not_trigger_diagnostics`, `plain_note_has_no_cards`
+//! - §3.3 delimiters in column 0: `indented_delimiters_are_plain_text`, `trailing_whitespace_on_delimiters_is_tolerated`, `stray_closing_line_is_ignored`
+//! - §3.3 types `qa` and `cloze`: `qa_card_with_id`, `cloze_deletion_with_and_without_hint`
+//! - §3.3 reserved types `free` and `estimate`: `reserved_types_warn_and_yield_no_card`
+//! - §3.3 unknown type: `unknown_type_is_an_error`
+//! - §3.3 header syntax: `invalid_block_header`, `id_may_follow_type_without_space`
+//! - §3.3 optional `{#id}`: `card_without_id_is_valid`
+//! - §3.3 id form: `card_id_accepts_valid_forms`, `card_id_rejects_malformed_forms`, `malformed_id_is_an_error`
+//! - §3.3 no nested blocks: `nested_block_reports_unclosed_outer`
+//! - §3.3 `:::` inside code fences: `closing_line_inside_backtick_fence_is_not_a_closer`, `closing_line_inside_tilde_fence_is_not_a_closer`, `shorter_fence_does_not_close_longer_one`, `opening_line_inside_code_fence_is_ignored`, `unclosed_code_fence_warns`
+//! - §3.3 unclosed block: `unclosed_block_at_eof`, `unclosed_block_mentions_open_fence`
+//! - §3.3 `qa` first `---` outside code: `qa_first_separator_outside_code_wins`, `qa_separator_inside_code_does_not_count`, `qa_missing_separator`
+//! - §3.3 `qa` multiline faces with equations and code: `qa_faces_are_multiline_markdown`
+//! - §3.3 `qa` empty face: `qa_empty_front`, `qa_empty_back`
+//! - §3.3 `cloze` forms with and without hint: `cloze_deletion_with_and_without_hint`, `cloze_hint_splits_at_first_double_colon`, `cloze_multiline_deletion`
+//! - §3.3 `cloze` N ≥ 1: `cloze_number_must_be_positive_without_leading_zero`
+//! - §3.3 sub-cards `id.N`, same N hidden together: `card_id_sub_card`, `review_ids_of_qa_and_cloze`, `cloze_same_number_is_one_sub_card`
+//! - §3.3 at least one deletion, non-empty text: `cloze_without_deletion`, `cloze_empty_deletion`, `cloze_unterminated_deletion`
+//! - §3.3 deletions inside LaTeX and code: `cloze_inside_latex_with_braces`, `cloze_inside_code_counts`
+//! - §3.3 card identity follows the id, not the text: `card_identity_ignores_text`
+//! - §5 non-consecutive cloze numbers: `cloze_non_consecutive_numbers_warn`
+//! - §5 every diagnostic kind and its exact message: `every_diagnostic_kind_is_triggered`, `structure_messages`, `cloze_messages`, `frontmatter_messages`, `diagnostic_display_format`, `diagnostic_severity_follows_kind`
+//! - §5 file and line of diagnostics: `diagnostics_are_sorted_by_line`, `cloze_diagnostic_lines`, `card_lines_count_frontmatter_lines`
+//! - §7 Markdown fixtures → expected cards: `fixtures_match_snapshots`
+//! - robustness: `parser_never_panics_on_odd_inputs`
+
 use std::path::{Path, PathBuf};
 
 use engramme_format::{
@@ -1226,5 +1263,110 @@ fn fixtures_ignore_line_endings_and_bom() {
         assert_eq!(snapshot(&parse_note(md, &crlf)), expected, "CRLF {md:?}");
         let bom = format!("\u{feff}{lf}");
         assert_eq!(snapshot(&parse_note(md, &bom)), expected, "BOM {md:?}");
+    }
+}
+
+#[test]
+fn crlf_and_bom_are_accepted() {
+    let source = "\u{feff}---\r\ntitle: T\r\n---\r\n:::qa {#c-abc123}\r\nQ\r\n---\r\nA\r\n:::\r\n";
+    let parsed = parse_note(Path::new("notes/crlf.md"), source);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(parsed.value.title, "T");
+    assert_eq!(parsed.value.cards[0].line, 4);
+    assert_eq!(parsed.value.cards[0].kind, qa("Q", "A"));
+}
+
+#[test]
+fn card_identity_ignores_text() {
+    let before = cloze_note(&["{{c1::a}} {{c2::b}}"]);
+    let after = cloze_note(&["Reworded: {{c2::B}}, then {{c1::A}}."]);
+    assert_eq!(
+        before.value.cards[0].review_ids(),
+        after.value.cards[0].review_ids()
+    );
+}
+
+#[test]
+fn every_diagnostic_kind_is_triggered() {
+    use std::collections::HashSet;
+    let sources: &[&[&str]] = &[
+        &["---", "- a", "---"],
+        &[":::qa", "Q"],
+        &["::: qa", ":::"],
+        &[":::note", ":::"],
+        &[":::qa {#c-1}", "Q", "---", "A", ":::"],
+        &[":::qa", "Q", ":::"],
+        &[":::qa", "---", "A", ":::"],
+        &[":::cloze", "x", ":::"],
+        &[":::cloze", "{{c1::}}", ":::"],
+        &[":::free", ":::"],
+        &[":::cloze", "{{c2::x}}", ":::"],
+        &["```", ":::qa"],
+    ];
+    let mut seen: HashSet<DiagnosticKind> = sources
+        .iter()
+        .flat_map(|lines| parse(lines).diagnostics)
+        .map(|d| d.kind)
+        .collect();
+    seen.extend(
+        read_note(Path::new("/nonexistent/engramme/x.md"))
+            .diagnostics
+            .iter()
+            .map(|d| d.kind),
+    );
+    let all = [
+        DiagnosticKind::InvalidFrontmatter,
+        DiagnosticKind::UnclosedBlock,
+        DiagnosticKind::InvalidBlockHeader,
+        DiagnosticKind::UnknownBlockType,
+        DiagnosticKind::MalformedId,
+        DiagnosticKind::MissingSeparator,
+        DiagnosticKind::EmptyFace,
+        DiagnosticKind::NoClozeDeletion,
+        DiagnosticKind::InvalidClozeDeletion,
+        DiagnosticKind::UnreadableFile,
+        DiagnosticKind::ReservedBlockType,
+        DiagnosticKind::NonConsecutiveClozeNumbers,
+        DiagnosticKind::UnclosedCodeFence,
+    ];
+    for kind in all {
+        assert!(seen.contains(&kind), "{kind:?} never triggered");
+    }
+}
+
+#[test]
+fn parser_never_panics_on_odd_inputs() {
+    let inputs = [
+        "",
+        "\u{feff}",
+        ":::",
+        ":::qa",
+        ":::qa {#",
+        ":::qa {#}",
+        "---",
+        "---\n---",
+        "---\n- a\n---",
+        "---\n: :\n---",
+        "{{c",
+        ":::cloze\n{{c1::é",
+        ":::cloze\n{{c1::é}}é{{c",
+        ":::cloze\n{{c1::{{c2::x}}}}\n:::",
+        ":::cloze\n{{c4294967296::x}}\n:::",
+        "\r",
+        "\r\n\r\n",
+        ":::é",
+        ":::qa\u{a0}{#c-abc123}\n:::",
+        "```",
+        "~~~~",
+        "````\n```",
+        "   ```\n:::qa",
+        ":::qa\n---\n---\n:::",
+        "# ",
+        "#",
+        "# #",
+        "\u{feff}---\r\ntitle: [\r\n---",
+    ];
+    for input in inputs {
+        let _ = parse_note(Path::new("notes/odd.md"), input);
     }
 }
