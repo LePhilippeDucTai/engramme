@@ -938,6 +938,17 @@ fn cloze_non_consecutive_numbers_warn() {
         "cloze numbers are not consecutive: missing c1"
     );
     assert_eq!(only_two.value.cards.len(), 1);
+    let many = cloze_note(&["{{c1::a}} {{c3::b}} {{c9::c}}"]);
+    assert_eq!(
+        many.diagnostics[0].message,
+        "cloze numbers are not consecutive: missing c2, c4, c5, c6, c7 and 1 more"
+    );
+    let huge = cloze_note(&["{{c4294967295::x}}"]);
+    assert_eq!(
+        huge.diagnostics[0].message,
+        "cloze numbers are not consecutive: missing c1, c2, c3, c4, c5 and 4294967289 more"
+    );
+    assert_eq!(huge.value.cards.len(), 1);
 }
 
 #[test]

@@ -91,24 +91,42 @@ pub(crate) fn parse(
             DiagnosticKind::NoClozeDeletion,
             "cloze card has no deletion such as `{{c1::text}}`",
         ));
-    } else if let Some(max) = deletions.iter().map(|d| d.number).max() {
-        let missing: Vec<String> = (1..max)
-            .filter(|n| deletions.iter().all(|d| d.number != *n))
-            .map(|n| format!("c{n}"))
-            .collect();
-        if !missing.is_empty() {
-            diagnostics.push(Diagnostic::new(
-                path,
-                opening.number,
-                DiagnosticKind::NonConsecutiveClozeNumbers,
-                format!(
-                    "cloze numbers are not consecutive: missing {}",
-                    missing.join(", ")
-                ),
-            ));
-        }
+    } else if let Some(message) = missing_numbers(&deletions) {
+        diagnostics.push(Diagnostic::new(
+            path,
+            opening.number,
+            DiagnosticKind::NonConsecutiveClozeNumbers,
+            format!("cloze numbers are not consecutive: missing {message}"),
+        ));
     }
     Some(CardKind::Cloze { text, deletions })
+}
+
+/// Most missing numbers listed in a message.
+const MAX_LISTED: u64 = 5;
+
+/// The numbers missing between 1 and the largest number, e.g. `c2, c4`, or
+/// `None` when there is none. Long lists are cut: `c1, …, c5 and 9 more`.
+fn missing_numbers(deletions: &[ClozeDeletion]) -> Option<String> {
+    let mut numbers: Vec<u32> = deletions.iter().map(|d| d.number).collect();
+    numbers.sort_unstable();
+    numbers.dedup();
+    let mut listed = Vec::new();
+    let mut total: u64 = 0;
+    let mut previous = 0u32;
+    for n in numbers {
+        let gap = u64::from(n - previous - 1);
+        for missing in (previous + 1..n).take((MAX_LISTED.saturating_sub(total)) as usize) {
+            listed.push(format!("c{missing}"));
+        }
+        total += gap;
+        previous = n;
+    }
+    match total {
+        0 => None,
+        t if t > MAX_LISTED => Some(format!("{} and {} more", listed.join(", "), t - MAX_LISTED)),
+        _ => Some(listed.join(", ")),
+    }
 }
 
 /// Offset of the first `}}` at brace depth zero in `bytes`.
