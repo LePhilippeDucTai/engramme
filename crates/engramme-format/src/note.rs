@@ -1,25 +1,45 @@
 use std::path::Path;
 
 use crate::block::{self, Scan};
-use crate::diagnostic::Parsed;
+use crate::diagnostic::{Diagnostic, Parsed};
+use crate::frontmatter;
 use crate::model::{Frontmatter, Note};
 use crate::source::{self, BLANKS, Line};
 
 /// Parses a note from its contents. Pure: reads nothing from disk.
 pub fn parse_note(path: &Path, source: &str) -> Parsed<Note> {
     let lines = source::lines(source);
+    let split = frontmatter::split(path, &lines);
+    let mut diagnostics: Vec<Diagnostic> = split.diagnostic.into_iter().collect();
+    let frontmatter = match split.yaml {
+        Some(yaml) => match frontmatter::parse_fields(path, &yaml, split.closing_line) {
+            Ok(fields) => frontmatter::note_frontmatter(path, fields, &mut diagnostics),
+            Err(diagnostic) => {
+                diagnostics.push(diagnostic);
+                Frontmatter::default()
+            }
+        },
+        None => Frontmatter::default(),
+    };
     let Scan {
         cards,
         prose,
-        mut diagnostics,
-    } = block::scan(path, &lines);
-    let title = heading_title(&prose).map_or_else(|| file_stem(path), str::to_owned);
+        diagnostics: block_diagnostics,
+    } = block::scan(path, split.body);
+    diagnostics.extend(block_diagnostics);
+    let title = frontmatter
+        .title
+        .as_deref()
+        .map(|title| title.trim())
+        .filter(|title| !title.is_empty())
+        .or_else(|| heading_title(&prose))
+        .map_or_else(|| file_stem(path), str::to_owned);
     diagnostics.sort_by_key(|d| d.line);
     Parsed {
         value: Note {
             path: path.to_path_buf(),
             title,
-            frontmatter: Frontmatter::default(),
+            frontmatter,
             cards,
         },
         diagnostics,

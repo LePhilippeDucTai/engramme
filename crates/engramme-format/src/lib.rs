@@ -8,6 +8,7 @@ mod block;
 mod cloze;
 mod diagnostic;
 mod fence;
+mod frontmatter;
 mod fs;
 mod id;
 mod model;

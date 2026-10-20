@@ -935,3 +935,207 @@ fn cloze_messages() {
         assert_eq!(parsed.diagnostics[0].to_string(), expected);
     }
 }
+
+const QA: [&str; 5] = [":::qa", "Q", "---", "A", ":::"];
+
+fn with_qa<'a>(head: &[&'a str]) -> Vec<&'a str> {
+    let mut lines = head.to_vec();
+    lines.extend_from_slice(&QA);
+    lines
+}
+
+#[test]
+fn note_without_frontmatter() {
+    let parsed = parse(&QA);
+    assert!(parsed.diagnostics.is_empty());
+    assert_eq!(parsed.value.frontmatter, Default::default());
+    assert_eq!(parsed.value.cards.len(), 1);
+}
+
+#[test]
+fn empty_frontmatter_is_valid() {
+    let parsed = parse(&with_qa(&["---", "---"]));
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(parsed.value.frontmatter, Default::default());
+    assert_eq!(parsed.value.cards[0].line, 3);
+    let comments = parse(&["---", "# just a comment", "---"]);
+    assert!(
+        comments.diagnostics.is_empty(),
+        "{:?}",
+        comments.diagnostics
+    );
+}
+
+#[test]
+fn frontmatter_keys_are_parsed() {
+    let parsed = parse(&[
+        "---",
+        "title: LGD downturn",
+        "tags: [risk, lgd]",
+        "sources:",
+        "  - Basel III",
+        "  - https://example.org",
+        "---",
+    ]);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    let fm = &parsed.value.frontmatter;
+    assert_eq!(fm.title.as_deref(), Some("LGD downturn"));
+    assert_eq!(fm.tags, vec!["risk", "lgd"]);
+    assert_eq!(fm.sources, vec!["Basel III", "https://example.org"]);
+    assert_eq!(parsed.value.title, "LGD downturn");
+}
+
+#[test]
+fn null_values_count_as_absent() {
+    let parsed = parse(&["---", "title:", "tags:", "sources: ~", "---", "# Heading"]);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(parsed.value.frontmatter, Default::default());
+    assert_eq!(parsed.value.title, "Heading");
+}
+
+#[test]
+fn yaml_1_1_booleans_stay_strings() {
+    let parsed = parse(&["---", "tags: [yes, no, on, y]", "---"]);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(parsed.value.frontmatter.tags, vec!["yes", "no", "on", "y"]);
+}
+
+#[test]
+fn unknown_keys_are_kept_in_extra() {
+    let parsed = parse(&[
+        "---",
+        "aliases: [LGD]",
+        "meta:",
+        "  owner: me",
+        "  n: 2",
+        "---",
+    ]);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    let extra = &parsed.value.frontmatter.extra;
+    assert_eq!(extra["aliases"], serde_json::json!(["LGD"]));
+    assert_eq!(extra["meta"], serde_json::json!({"owner": "me", "n": 2}));
+}
+
+#[test]
+fn title_from_frontmatter_beats_heading() {
+    let parsed = parse(&["---", "title: From frontmatter", "---", "# From heading"]);
+    assert_eq!(parsed.value.title, "From frontmatter");
+}
+
+#[test]
+fn blank_frontmatter_title_falls_back() {
+    let parsed = parse(&["---", "title: '  '", "---", "# From heading"]);
+    assert_eq!(parsed.value.title, "From heading");
+    let stem = parse(&["---", "title: ''", "---"]);
+    assert_eq!(stem.value.title, "test");
+}
+
+#[test]
+fn title_must_be_a_string() {
+    let parsed = parse(&with_qa(&["---", "tags: [a]", "title: 2024", "---"]));
+    assert_eq!(codes(&parsed), vec![(3, "invalid-frontmatter")]);
+    assert_eq!(parsed.value.frontmatter.title, None);
+    assert_eq!(parsed.value.frontmatter.tags, vec!["a"]);
+    assert_eq!(parsed.value.cards.len(), 1);
+}
+
+#[test]
+fn tags_must_be_a_list_of_strings() {
+    for tags in ["tags: lgd", "tags: [a, 2024]"] {
+        let parsed = parse(&["---", "title: T", tags, "---"]);
+        assert_eq!(codes(&parsed), vec![(3, "invalid-frontmatter")], "{tags}");
+        assert!(parsed.value.frontmatter.tags.is_empty());
+    }
+}
+
+#[test]
+fn sources_must_be_a_list_of_strings() {
+    let parsed = parse(&["---", "title: T", "sources:", "  - a", "  - 3", "---"]);
+    assert_eq!(codes(&parsed), vec![(4, "invalid-frontmatter")]);
+    assert!(parsed.value.frontmatter.sources.is_empty());
+}
+
+#[test]
+fn invalid_yaml_reports_file_line() {
+    let parsed = parse(&with_qa(&[
+        "---",
+        "title: Foo",
+        "  bar: baz",
+        "---",
+        "# Heading",
+    ]));
+    assert_eq!(codes(&parsed), vec![(3, "invalid-frontmatter")]);
+    assert_eq!(parsed.value.frontmatter, Default::default());
+    assert_eq!(parsed.value.title, "Heading");
+    assert_eq!(parsed.value.cards.len(), 1);
+}
+
+#[test]
+fn duplicate_key_is_invalid_yaml() {
+    let parsed = parse(&["---", "title: A", "title: B", "---"]);
+    assert_eq!(codes(&parsed), vec![(3, "invalid-frontmatter")]);
+}
+
+#[test]
+fn frontmatter_must_be_a_mapping() {
+    let parsed = parse(&["---", "- a", "- b", "---"]);
+    assert_eq!(codes(&parsed), vec![(2, "invalid-frontmatter")]);
+}
+
+#[test]
+fn unclosed_frontmatter() {
+    // No `---` may follow: it would close the frontmatter.
+    let parsed = parse(&["---", "title: T", ":::cloze", "{{c1::x}}", ":::"]);
+    assert_eq!(codes(&parsed), vec![(1, "invalid-frontmatter")]);
+    assert_eq!(parsed.value.cards.len(), 1);
+    assert_eq!(parsed.value.cards[0].line, 3);
+}
+
+#[test]
+fn card_lines_count_frontmatter_lines() {
+    let parsed = parse(&with_qa(&["---", "title: T", "tags: [a]", "---", ""]));
+    assert_eq!(parsed.value.cards[0].line, 6);
+    let bad = parse(&["---", "title: T", "---", ":::qa", "Q", ":::"]);
+    assert_eq!(codes(&bad), vec![(4, "missing-separator")]);
+}
+
+#[test]
+fn dashes_after_line_1_are_markdown() {
+    let parsed = parse(&with_qa(&["", "---", "title: T", "---"]));
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(parsed.value.frontmatter, Default::default());
+    assert_eq!(parsed.value.cards.len(), 1);
+}
+
+#[test]
+fn frontmatter_messages() {
+    let cases: [(&[&str], &str); 5] = [
+        (
+            &["---", "title: T"],
+            "notes/test.md:1: error: frontmatter starting on line 1 is never closed: add a `---` line after it [invalid-frontmatter]",
+        ),
+        (
+            &["---", "title: 2024", "---"],
+            "notes/test.md:2: error: `title` must be a string [invalid-frontmatter]",
+        ),
+        (
+            &["---", "tags: lgd", "---"],
+            "notes/test.md:2: error: `tags` must be a list of strings [invalid-frontmatter]",
+        ),
+        (
+            &["---", "sources: 1", "---"],
+            "notes/test.md:2: error: `sources` must be a list of strings [invalid-frontmatter]",
+        ),
+        (
+            &["---", "- a", "---"],
+            "notes/test.md:2: error: invalid YAML in frontmatter: ",
+        ),
+    ];
+    for (lines, expected) in cases {
+        let parsed = parse(lines);
+        assert_eq!(parsed.diagnostics.len(), 1, "{lines:?}");
+        let shown = parsed.diagnostics[0].to_string();
+        assert!(shown.starts_with(expected), "{shown}");
+        assert!(!shown.contains('\n'), "{shown}");
+    }
+}
