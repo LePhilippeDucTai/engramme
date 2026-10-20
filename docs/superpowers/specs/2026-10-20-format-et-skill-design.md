@@ -25,7 +25,9 @@ ordres de grandeur de données.
 
 | Sujet | Décision | Raison |
 |---|---|---|
-| Forme | App desktop native (Tauri) | Choix de l'utilisateur. Risque : exécutable non signé bloqué sur Windows verrouillé → l'interface web doit aussi pouvoir être servie en local dans un navigateur (repli). |
+| Forme | App desktop native (Tauri) | Choix de l'utilisateur. Risque : exécutable non signé bloqué sur Windows verrouillé → l'interface web doit aussi pouvoir être servie en local dans un navigateur (repli). Au travail, ce mode servi par le paquet Python (`engramme serve`, sous-projet 2) sera probablement le mode principal. |
+| Distribution | Paquet Python : cœur Rust exposé par PyO3, construit avec maturin (wheel `abi3`, Python ≥ 3.9) ; wheels macOS et Windows (`win_amd64`, compilée par compilation croisée depuis le Mac) publiées dans les releases GitHub | Rust n'est pas installable sur le poste pro, Python l'est ; au travail, la wheel est téléchargée puis installée à la main (`pip install fichier.whl`). Le lanceur `engramme` est un lanceur pip standard, pas un exécutable non signé. |
+| Langue | Livrables publics (README, `docs/format.md`, skill, messages de la CLI) en anglais ; documents de conception internes en français | Le dépôt est public et réutilisable. |
 | Stack | Rust (cœur) + Tauri + React/TypeScript (interface) | `fsrs-rs` est l'implémentation de référence ; binaire léger sans runtime ; empaquetage Python trop fragile sous Windows. |
 | Source de vérité du contenu | Fichiers Markdown dans un dossier (la « base ») | Lisibles et modifiables par l'humain et par tous les agents ; versionnables avec git ; base du knowledge management. |
 | Source de vérité de l'historique | Journal JSONL en ajout seul, versionné | Diffs lisibles ; l'état FSRS se recalcule en rejouant le journal ; l'optimisation FSRS en a besoin. |
@@ -235,7 +237,7 @@ Mesures :
 - un taux de déclenchement suivi pendant les deux premières semaines (nombre
   de fichiers dans `inbox/` par jour travaillé).
 
-## 5. Crate `engramme-format` et CLI `check`
+## 5. Crates, CLI `check` et paquet Python
 
 Un workspace Cargo :
 
@@ -245,10 +247,17 @@ Un workspace Cargo :
   `InboxProposal`) ; diagnostics avec fichier, ligne, niveau (erreur ou
   avertissement) et message. Aucune E/S autre que la lecture de fichiers. Ce
   crate deviendra le cœur de l'app.
-- `crates/engramme-cli` (binaire `engramme`) : la sous-commande
+- `crates/engramme-cli` (bibliothèque exposant `run(args) -> code de sortie`,
+  plus un petit binaire de développement) : la sous-commande
   `engramme check [<chemin>…]` valide une base entière (`ENGRAMME_DIR` ou le
   chemin donné) ou des fichiers isolés. Code de sortie 0 s'il n'y a aucune
-  erreur, 1 sinon. Les diagnostics sont lisibles par un humain et par un agent.
+  erreur, 1 sinon. Les diagnostics, en anglais, sont lisibles par un humain et
+  par un agent.
+- `crates/engramme-py` (module PyO3, construit par maturin) : le paquet Python
+  `engramme`, dont le point d'entrée `engramme` transmet `sys.argv` à
+  `engramme_cli::run`. Il n'y a **qu'une seule CLI**, en Rust ; elle est
+  installée par Python partout (`pip install` au travail, `uv tool install`
+  sur le Mac).
 
 ### Diagnostics de `check`
 
@@ -268,11 +277,17 @@ consécutifs (ex. c1 et c3 sans c2).
 1. `docs/format.md` — la spec du format v1 destinée aux utilisateurs (section 3
    de ce document, avec des exemples).
 2. `skill/SKILL.md` et `skill/INSTALL.md`.
-3. Le workspace Cargo (`engramme-format`, `engramme-cli`).
+3. Le workspace Cargo (`engramme-format`, `engramme-cli`, `engramme-py`) et
+   les wheels macOS (arm64) et Windows (`win_amd64`), attachées à une release
+   GitHub `v0.1.0` avec le skill.
 4. `examples/savoir/` — une base d'exemple valide (quelques notes de risque de
    crédit génériques, un fichier dans la boîte de réception), qui sert aussi de
    jeu de test.
 5. `README.md`, `LICENSE` (MIT).
+6. Mise en service sur le Mac : CLI installée depuis la wheel, skill installé
+   globalement, base perso créée et versionnée avec git, `ENGRAMME_DIR`
+   défini. L'installation sur le poste pro est faite par l'utilisateur, à
+   partir de la release.
 
 ## 7. Tests et critères de succès
 
@@ -283,6 +298,9 @@ consécutifs (ex. c1 et c3 sans c2).
 - **CLI** : `engramme check examples/savoir` sort en code 0 ; sur une fixture
   invalide, le code est 1 et le diagnostic indique le bon fichier et la bonne
   ligne.
+- **Wheels** : la wheel macOS, installée dans un environnement isolé, valide
+  `examples/savoir`. La wheel Windows ne peut pas être testée sur le Mac ; sa
+  validation est le premier `pip install` sur le poste pro.
 - **Skill** : il n'existe pas de test automatique crédible. Critères à l'usage,
   après deux semaines de travail réel : des propositions arrivent ; 100 %
   passent `check` ; le taux de rejet, mesuré au tri manuel, est noté et
