@@ -91,3 +91,35 @@ impl Card {
         }
     }
 }
+
+/// A card proposal written by an agent in `inbox/`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct InboxProposal {
+    /// Path of the file, as given to the parser.
+    pub path: PathBuf,
+    /// Frontmatter keys.
+    pub frontmatter: ProposalFrontmatter,
+    /// Cards without errors, in file order.
+    pub cards: Vec<Card>,
+}
+
+/// Frontmatter of a proposal. Required keys are `None` when missing or invalid.
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+pub struct ProposalFrontmatter {
+    /// Agent that wrote the proposal, e.g. `claude`.
+    pub proposed_by: Option<String>,
+    /// ISO 8601 date-time of the proposal, as written.
+    pub date: Option<String>,
+    /// Task in progress, in one sentence.
+    pub context: Option<String>,
+    /// Note to complete or create, relative to the vault, under `notes/`.
+    pub target: Option<String>,
+    /// Why this knowledge is worth keeping.
+    pub why: Option<String>,
+    /// Tags to merge into the target note.
+    pub tags: Vec<String>,
+    /// Sources to merge into the target note.
+    pub sources: Vec<String>,
+    /// Unknown keys, kept as they are.
+    pub extra: serde_json::Map<String, serde_json::Value>,
+}

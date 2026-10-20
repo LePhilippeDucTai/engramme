@@ -26,7 +26,8 @@ impl fmt::Display for Severity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DiagnosticKind {
-    /// Frontmatter is not valid YAML, is never closed, or has a key of the wrong type.
+    /// Frontmatter is not valid YAML, is never closed, or has a key of the wrong
+    /// type or a malformed `date`.
     InvalidFrontmatter,
     /// A card block has no closing `:::` line.
     UnclosedBlock,
@@ -46,6 +47,10 @@ pub enum DiagnosticKind {
     InvalidClozeDeletion,
     /// The file cannot be read or is not UTF-8.
     UnreadableFile,
+    /// A required key of a proposal is missing or empty.
+    MissingRequiredKey,
+    /// The `target` of a proposal is not a `.md` path under `notes/`.
+    InvalidTarget,
     /// The card type is reserved for a future version.
     ReservedBlockType,
     /// Cloze numbers skip a value.
@@ -68,6 +73,8 @@ impl DiagnosticKind {
             DiagnosticKind::NoClozeDeletion => "no-cloze-deletion",
             DiagnosticKind::InvalidClozeDeletion => "invalid-cloze-deletion",
             DiagnosticKind::UnreadableFile => "unreadable-file",
+            DiagnosticKind::MissingRequiredKey => "missing-required-key",
+            DiagnosticKind::InvalidTarget => "invalid-target",
             DiagnosticKind::ReservedBlockType => "reserved-block-type",
             DiagnosticKind::NonConsecutiveClozeNumbers => "non-consecutive-cloze-numbers",
             DiagnosticKind::UnclosedCodeFence => "unclosed-code-fence",
