@@ -3,9 +3,9 @@ use std::path::Path;
 use crate::diagnostic::{Diagnostic, DiagnosticKind, Severity};
 use crate::fence::Fence;
 use crate::id::CardId;
-use crate::model::{Card, CardKind};
-use crate::qa;
-use crate::source::{BLANKS, Line, is_blank, normalize};
+use crate::model::Card;
+use crate::source::{BLANKS, Line, is_blank};
+use crate::{cloze, qa};
 
 /// What [`scan`] found in a run of lines.
 pub(crate) struct Scan<'a> {
@@ -121,10 +121,12 @@ impl<'a> Scanner<'_, 'a> {
                 &block.body,
                 &mut self.scan.diagnostics,
             ),
-            BodyType::Cloze => Some(CardKind::Cloze {
-                text: normalize(&block.body),
-                deletions: Vec::new(),
-            }),
+            BodyType::Cloze => cloze::parse(
+                self.path,
+                &block.opening,
+                &block.body,
+                &mut self.scan.diagnostics,
+            ),
         };
         let has_errors = self.scan.diagnostics[first..]
             .iter()

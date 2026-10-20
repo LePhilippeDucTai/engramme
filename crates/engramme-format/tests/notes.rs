@@ -760,3 +760,178 @@ fn structure_messages() {
         assert_eq!(messages, [expected], "{lines:?}");
     }
 }
+
+fn deletions(card: &Card) -> Vec<(u32, &str, Option<&str>)> {
+    match &card.kind {
+        CardKind::Cloze { deletions, .. } => deletions
+            .iter()
+            .map(|d| (d.number, d.text.as_str(), d.hint.as_deref()))
+            .collect(),
+        CardKind::Qa { .. } => panic!("expected a cloze card: {card:?}"),
+    }
+}
+
+fn cloze_note(body: &[&str]) -> Parsed<Note> {
+    let mut lines = vec![":::cloze {#c-91be0q}"];
+    lines.extend_from_slice(body);
+    lines.push(":::");
+    parse(&lines)
+}
+
+#[test]
+fn cloze_deletion_with_and_without_hint() {
+    let parsed = cloze_note(&["{{c1::PD}} and {{c2::LGD::loss given default}}"]);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(
+        deletions(&parsed.value.cards[0]),
+        vec![(1, "PD", None), (2, "LGD", Some("loss given default"))]
+    );
+    let blank_hint = cloze_note(&["{{c1::PD::  }}"]);
+    assert_eq!(deletions(&blank_hint.value.cards[0]), vec![(1, "PD", None)]);
+}
+
+#[test]
+fn cloze_hint_splits_at_first_double_colon() {
+    let parsed = cloze_note(&["Use {{c1::std::mem::take}}."]);
+    assert_eq!(
+        deletions(&parsed.value.cards[0]),
+        vec![(1, "std", Some("mem::take"))]
+    );
+}
+
+#[test]
+fn cloze_same_number_is_one_sub_card() {
+    let parsed = cloze_note(&["{{c1::a}} {{c2::b}} {{c1::c}}"]);
+    let card = &parsed.value.cards[0];
+    assert_eq!(
+        deletions(card),
+        vec![(1, "a", None), (2, "b", None), (1, "c", None)]
+    );
+    assert_eq!(card.review_ids(), vec!["c-91be0q.1", "c-91be0q.2"]);
+}
+
+#[test]
+fn cloze_inside_latex_with_braces() {
+    let parsed = cloze_note(&[
+        r"$\mathrm{EL} = {{c1::PD}} \times \mathrm{LGD}$",
+        r"$x = {{c2::\frac{a}{b}}}$ and $y = {{c3::\hat{x}}}}$",
+    ]);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(
+        deletions(&parsed.value.cards[0]),
+        vec![
+            (1, "PD", None),
+            (2, r"\frac{a}{b}", None),
+            (3, r"\hat{x}", None)
+        ]
+    );
+    assert!(cloze_text(&parsed.value.cards[0]).ends_with(r"{{c3::\hat{x}}}}$"));
+}
+
+#[test]
+fn cloze_inside_code_counts() {
+    let parsed = cloze_note(&["```rust", "let x = {{c1::std::mem::take}}(&mut v);", "```"]);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(deletions(&parsed.value.cards[0]).len(), 1);
+}
+
+#[test]
+fn cloze_multiline_deletion() {
+    let parsed = cloze_note(&["{{c1::first", "second}}"]);
+    assert_eq!(
+        deletions(&parsed.value.cards[0]),
+        vec![(1, "first\nsecond", None)]
+    );
+}
+
+#[test]
+fn cloze_without_deletion() {
+    for body in ["Plain text", "{{c::x}} {{C1::x}} {{c1:x}}"] {
+        let parsed = cloze_note(&[body]);
+        assert_eq!(codes(&parsed), vec![(1, "no-cloze-deletion")], "{body}");
+        assert!(parsed.value.cards.is_empty());
+    }
+}
+
+#[test]
+fn cloze_empty_deletion() {
+    for body in ["{{c1::}}", "{{c1::  }}", "{{c1::::hint}}"] {
+        let parsed = cloze_note(&[body]);
+        assert_eq!(
+            codes(&parsed),
+            vec![(2, "invalid-cloze-deletion")],
+            "{body}"
+        );
+        assert!(parsed.value.cards.is_empty());
+    }
+}
+
+#[test]
+fn cloze_number_must_be_positive_without_leading_zero() {
+    for body in ["{{c0::x}}", "{{c01::x}}", "{{c99999999999::x}}"] {
+        let parsed = cloze_note(&[body]);
+        assert_eq!(
+            codes(&parsed),
+            vec![(2, "invalid-cloze-deletion")],
+            "{body}"
+        );
+        assert!(parsed.value.cards.is_empty());
+    }
+}
+
+#[test]
+fn cloze_unterminated_deletion() {
+    let parsed = cloze_note(&["{{c1::open", "{{c2::also open"]);
+    assert_eq!(codes(&parsed), vec![(2, "invalid-cloze-deletion")]);
+    assert!(parsed.value.cards.is_empty());
+}
+
+#[test]
+fn cloze_non_consecutive_numbers_warn() {
+    let parsed = cloze_note(&["{{c1::a}} {{c3::b}}"]);
+    assert_eq!(codes(&parsed), vec![(1, "non-consecutive-cloze-numbers")]);
+    assert_eq!(
+        parsed.diagnostics[0].message,
+        "cloze numbers are not consecutive: missing c2"
+    );
+    assert_eq!(parsed.value.cards.len(), 1);
+    let only_two = cloze_note(&["{{c2::a}}"]);
+    assert_eq!(
+        only_two.diagnostics[0].message,
+        "cloze numbers are not consecutive: missing c1"
+    );
+    assert_eq!(only_two.value.cards.len(), 1);
+}
+
+#[test]
+fn cloze_diagnostic_lines() {
+    let parsed = cloze_note(&["", "  ", "{{c1::a}}", "text", "and {{c2::}}"]);
+    assert_eq!(codes(&parsed), vec![(6, "invalid-cloze-deletion")]);
+}
+
+#[test]
+fn cloze_messages() {
+    let cases: [(&str, &str); 4] = [
+        (
+            "Plain text",
+            "notes/test.md:1: error: cloze card has no deletion such as `{{c1::text}}` [no-cloze-deletion]",
+        ),
+        (
+            "{{c1::open",
+            "notes/test.md:2: error: cloze deletion `{{c1::` is never closed with `}}` [invalid-cloze-deletion]",
+        ),
+        (
+            "{{c01::x}}",
+            "notes/test.md:2: error: invalid cloze number `c01`: numbers start at 1, without leading zero [invalid-cloze-deletion]",
+        ),
+        (
+            "{{c1::  }}",
+            "notes/test.md:2: error: cloze deletion `{{c1::…}}` has empty text [invalid-cloze-deletion]",
+        ),
+    ];
+    for (body, expected) in cases {
+        let parsed = cloze_note(&[body]);
+        assert_eq!(parsed.diagnostics.len(), 1, "{body}");
+        assert_eq!(parsed.diagnostics[0].to_string(), expected);
+    }
+}
