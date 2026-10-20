@@ -1139,3 +1139,92 @@ fn frontmatter_messages() {
         assert!(!shown.contains('\n'), "{shown}");
     }
 }
+
+const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/notes");
+
+fn fixture_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    entries.sort();
+    for path in entries {
+        if path.is_dir() {
+            fixture_files(&path, out);
+        } else if path.extension().is_some_and(|ext| ext == "md") {
+            out.push(path);
+        }
+    }
+}
+
+fn snapshot(parsed: &Parsed<Note>) -> serde_json::Value {
+    let diagnostics: Vec<serde_json::Value> = parsed
+        .diagnostics
+        .iter()
+        .map(|d| serde_json::json!({"line": d.line, "severity": d.severity, "code": d.kind.code()}))
+        .collect();
+    serde_json::json!({
+        "title": parsed.value.title,
+        "frontmatter": parsed.value.frontmatter,
+        "cards": parsed.value.cards,
+        "diagnostics": diagnostics,
+    })
+}
+
+#[test]
+fn fixtures_match_snapshots() {
+    let mut files = Vec::new();
+    fixture_files(Path::new(FIXTURES), &mut files);
+    assert!(!files.is_empty());
+    let update = std::env::var_os("UPDATE_FIXTURES").is_some();
+    let mut failures = Vec::new();
+    for md in &files {
+        let parsed = read_note(md);
+        let relative = md.strip_prefix(FIXTURES).unwrap();
+        let in_valid = relative.starts_with("valid");
+        if in_valid && parsed.has_errors() {
+            failures.push(format!("{}: errors in a valid fixture", relative.display()));
+        }
+        if !in_valid && !parsed.has_errors() {
+            failures.push(format!(
+                "{}: no error in an invalid fixture",
+                relative.display()
+            ));
+        }
+        let actual = snapshot(&parsed);
+        let json = md.with_extension("json");
+        if update {
+            let text = serde_json::to_string_pretty(&actual).unwrap() + "\n";
+            std::fs::write(&json, text).unwrap();
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&json) else {
+            failures.push(format!("{}: missing snapshot", json.display()));
+            continue;
+        };
+        let expected: serde_json::Value = serde_json::from_str(&text).unwrap();
+        if expected != actual {
+            failures.push(format!(
+                "{}:\nexpected: {}\nactual:   {}",
+                relative.display(),
+                serde_json::to_string_pretty(&expected).unwrap(),
+                serde_json::to_string_pretty(&actual).unwrap()
+            ));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn fixtures_ignore_line_endings_and_bom() {
+    let mut files = Vec::new();
+    fixture_files(Path::new(FIXTURES), &mut files);
+    for md in &files {
+        let lf = std::fs::read_to_string(md).unwrap().replace("\r\n", "\n");
+        let expected = snapshot(&parse_note(md, &lf));
+        let crlf = lf.replace('\n', "\r\n");
+        assert_eq!(snapshot(&parse_note(md, &crlf)), expected, "CRLF {md:?}");
+        let bom = format!("\u{feff}{lf}");
+        assert_eq!(snapshot(&parse_note(md, &bom)), expected, "BOM {md:?}");
+    }
+}

@@ -1,0 +1,31 @@
+{
+  "cards": [
+    {
+      "deletions": [
+        {
+          "hint": null,
+          "number": 1,
+          "text": "parsed"
+        }
+      ],
+      "id": null,
+      "line": 4,
+      "text": "The card is still {{c1::parsed}}.",
+      "type": "cloze"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "invalid-frontmatter",
+      "line": 1,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "extra": {},
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "frontmatter-unclosed"
+}

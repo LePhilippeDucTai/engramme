@@ -1,0 +1,25 @@
+{
+  "cards": [
+    {
+      "deletions": [
+        {
+          "hint": null,
+          "number": 1,
+          "text": "downturn"
+        }
+      ],
+      "id": null,
+      "line": 3,
+      "text": "Basel III requires a {{c1::downturn}} LGD.",
+      "type": "cloze"
+    }
+  ],
+  "diagnostics": [],
+  "frontmatter": {
+    "extra": {},
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "stem-title"
+}

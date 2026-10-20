@@ -1,0 +1,51 @@
+{
+  "cards": [
+    {
+      "deletions": [
+        {
+          "hint": null,
+          "number": 1,
+          "text": "deletion"
+        }
+      ],
+      "id": null,
+      "line": 23,
+      "text": "Valid {{c1::deletion}}.",
+      "type": "cloze"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "no-cloze-deletion",
+      "line": 3,
+      "severity": "error"
+    },
+    {
+      "code": "invalid-cloze-deletion",
+      "line": 8,
+      "severity": "error"
+    },
+    {
+      "code": "invalid-cloze-deletion",
+      "line": 12,
+      "severity": "error"
+    },
+    {
+      "code": "invalid-cloze-deletion",
+      "line": 16,
+      "severity": "error"
+    },
+    {
+      "code": "invalid-cloze-deletion",
+      "line": 20,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "extra": {},
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "Cloze errors"
+}

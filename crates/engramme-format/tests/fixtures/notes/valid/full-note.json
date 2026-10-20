@@ -1,0 +1,71 @@
+{
+  "cards": [
+    {
+      "back": "$\\mathrm{EL} = \\mathrm{PD} \\times \\mathrm{LGD} \\times \\mathrm{EAD}$\n\n```python\n# not a separator nor a closer\n---\n:::\nel = pd * lgd * ead\n```",
+      "front": "What is the expected loss formula?\n\n$$\n\\mathrm{EL} = ?\n$$",
+      "id": "c-91be0q",
+      "line": 18,
+      "type": "qa"
+    },
+    {
+      "back": "The downturn LGD.\n---\nNot the long-run average.",
+      "front": "Which LGD is used for capital requirements?",
+      "id": null,
+      "line": 35,
+      "type": "qa"
+    },
+    {
+      "deletions": [
+        {
+          "hint": null,
+          "number": 1,
+          "text": "\\mathrm{PD}"
+        },
+        {
+          "hint": null,
+          "number": 1,
+          "text": "PD"
+        },
+        {
+          "hint": "a ratio",
+          "number": 2,
+          "text": "$\\frac{a}{b}$"
+        }
+      ],
+      "id": "c-7k2m9x",
+      "line": 43,
+      "text": "$\\mathrm{EL} = {{c1::\\mathrm{PD}}} \\times \\mathrm{LGD} \\times \\mathrm{EAD}$,\nwhere {{c1::PD}} is a probability and {{c2::$\\frac{a}{b}$::a ratio}} is a ratio.",
+      "type": "cloze"
+    },
+    {
+      "deletions": [
+        {
+          "hint": null,
+          "number": 1,
+          "text": "1.0 - recovery_rate"
+        }
+      ],
+      "id": null,
+      "line": 48,
+      "text": "```rust\nlet lgd = {{c1::1.0 - recovery_rate}};\n```",
+      "type": "cloze"
+    }
+  ],
+  "diagnostics": [],
+  "frontmatter": {
+    "extra": {
+      "aliases": [
+        "LGD"
+      ]
+    },
+    "sources": [
+      "Basel III, CRE36"
+    ],
+    "tags": [
+      "credit-risk",
+      "lgd"
+    ],
+    "title": "Downturn LGD"
+  },
+  "title": "Downturn LGD"
+}

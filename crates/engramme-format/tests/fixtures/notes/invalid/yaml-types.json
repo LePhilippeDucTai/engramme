@@ -1,0 +1,42 @@
+{
+  "cards": [
+    {
+      "back": "A",
+      "front": "Q",
+      "id": null,
+      "line": 12,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "invalid-frontmatter",
+      "line": 2,
+      "severity": "error"
+    },
+    {
+      "code": "invalid-frontmatter",
+      "line": 3,
+      "severity": "error"
+    },
+    {
+      "code": "invalid-frontmatter",
+      "line": 5,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "extra": {
+      "meta": {
+        "owner": "risk",
+        "review": [
+          2026
+        ]
+      }
+    },
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "yaml-types"
+}

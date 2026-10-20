@@ -1,0 +1,69 @@
+{
+  "cards": [
+    {
+      "deletions": [
+        {
+          "hint": null,
+          "number": 1,
+          "text": "PD"
+        },
+        {
+          "hint": null,
+          "number": 3,
+          "text": "EAD"
+        }
+      ],
+      "id": null,
+      "line": 11,
+      "text": "{{c1::PD}} and {{c3::EAD}}",
+      "type": "cloze"
+    },
+    {
+      "deletions": [
+        {
+          "hint": null,
+          "number": 2,
+          "text": "LGD"
+        }
+      ],
+      "id": null,
+      "line": 15,
+      "text": "Only {{c2::LGD}}.",
+      "type": "cloze"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "reserved-block-type",
+      "line": 3,
+      "severity": "warning"
+    },
+    {
+      "code": "reserved-block-type",
+      "line": 7,
+      "severity": "warning"
+    },
+    {
+      "code": "non-consecutive-cloze-numbers",
+      "line": 11,
+      "severity": "warning"
+    },
+    {
+      "code": "non-consecutive-cloze-numbers",
+      "line": 15,
+      "severity": "warning"
+    },
+    {
+      "code": "unclosed-code-fence",
+      "line": 19,
+      "severity": "warning"
+    }
+  ],
+  "frontmatter": {
+    "extra": {},
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "Warnings"
+}

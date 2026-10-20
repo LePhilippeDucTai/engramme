@@ -1,0 +1,19 @@
+{
+  "cards": [
+    {
+      "back": "Yes.",
+      "front": "Is an empty frontmatter valid?",
+      "id": null,
+      "line": 5,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [],
+  "frontmatter": {
+    "extra": {},
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "Title"
+}

@@ -1,0 +1,40 @@
+{
+  "cards": [
+    {
+      "back": "Yes.",
+      "front": "Valid?",
+      "id": null,
+      "line": 26,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "missing-separator",
+      "line": 3,
+      "severity": "error"
+    },
+    {
+      "code": "missing-separator",
+      "line": 7,
+      "severity": "error"
+    },
+    {
+      "code": "empty-face",
+      "line": 14,
+      "severity": "error"
+    },
+    {
+      "code": "empty-face",
+      "line": 22,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "extra": {},
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "Q/A errors"
+}

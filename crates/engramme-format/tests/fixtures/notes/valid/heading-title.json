@@ -1,0 +1,19 @@
+{
+  "cards": [
+    {
+      "back": "Showing a 3-backtick fence inside it.",
+      "front": "What does a 4-backtick fence allow?",
+      "id": null,
+      "line": 27,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [],
+  "frontmatter": {
+    "extra": {},
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "Real title"
+}

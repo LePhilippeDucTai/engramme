@@ -1,0 +1,25 @@
+{
+  "cards": [
+    {
+      "back": "Yes.",
+      "front": "Still parsed?",
+      "id": null,
+      "line": 7,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "invalid-frontmatter",
+      "line": 3,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "extra": {},
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "Heading title"
+}

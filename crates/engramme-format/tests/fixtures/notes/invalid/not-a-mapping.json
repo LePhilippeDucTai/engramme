@@ -1,0 +1,17 @@
+{
+  "cards": [],
+  "diagnostics": [
+    {
+      "code": "invalid-frontmatter",
+      "line": 2,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "extra": {},
+    "sources": [],
+    "tags": [],
+    "title": null
+  },
+  "title": "not-a-mapping"
+}
