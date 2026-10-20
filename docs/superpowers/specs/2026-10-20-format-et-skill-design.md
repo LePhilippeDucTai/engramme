@@ -31,6 +31,7 @@ ordres de grandeur de données.
 | Source de vérité de l'historique | Journal JSONL en ajout seul, versionné | Diffs lisibles ; l'état FSRS se recalcule en rejouant le journal ; l'optimisation FSRS en a besoin. |
 | SQLite | Cache reconstructible, ignoré par git | Aucun binaire précieux à protéger. |
 | Bases | Une base pro (poste Windows) et une base perso (Mac), **sans synchronisation** | Aucune fuite de contenu professionnel. |
+| iPhone | Base perso seulement ; révision hors ligne indispensable | La base pro ne quitte pas le poste pro. Le format admet plusieurs appareils qui écrivent dans la même base (journal par appareil, identifiants aléatoires). |
 | Dépôt | L'outil seul, jamais de données | Le dépôt est public. |
 | Capture par les agents | Boîte de réception, tri humain obligatoire | Effet de génération : le tri est un moment d'apprentissage ; il évite que la pile de révisions grossisse sans fin. |
 | IA | Facultative, fournisseurs interchangeables (Anthropic, OpenAI/Azure, Ollama) | L'app reste entièrement utilisable sans clé. Le LLM autorisé au travail n'est pas encore connu. |
@@ -39,10 +40,11 @@ ordres de grandeur de données.
 ### Feuille de route (sous-projets, dans l'ordre)
 
 1. **Format + skill de capture** — ce document.
-2. **App MVP** — révision Q/R et texte à trous avec FSRS, tri de la boîte de réception, consultation des notes.
-3. **Couche IA** — fournisseurs, réponse libre commentée, explications, variantes d'exercices.
-4. **Cartes d'ordre de grandeur et statistiques.**
-5. **Knowledge management avancé** — liens `[[...]]`, rétroliens, recherche, graphe.
+2. **App MVP** — révision Q/R et texte à trous avec FSRS, tri de la boîte de réception, consultation des notes. Inclut le repli navigateur, qui donne un premier accès iPhone : Mac allumé, Tailscale et PWA, en ligne seulement.
+3. **iPhone hors ligne** — Tauri 2 pour iOS (même cœur Rust, même interface), synchronisation de la base perso (git ou iCloud Drive, à trancher), révision d'abord ; le tri et l'édition sur iPhone viendront ensuite. Placé avant l'IA : l'habitude de révision quotidienne compte plus que le tuteur.
+4. **Couche IA** — fournisseurs, réponse libre commentée, explications, variantes d'exercices.
+5. **Cartes d'ordre de grandeur et statistiques.**
+6. **Knowledge management avancé** — liens `[[...]]`, rétroliens, recherche, graphe.
 
 Chaque sous-projet a son propre cycle spec → plan → implémentation.
 
@@ -75,7 +77,8 @@ notes, export ou import Anki.
   inbox/                      # propositions des agents, en attente de tri
     2026-10-20T1432-copilot-ifrs9-staging.md
   .app/
-    log/2026-10.jsonl         # versionné ; un fichier par mois (UTC) ; ajout seul
+    log/2026-10.mac.jsonl     # versionné ; un fichier par mois (UTC) et par appareil ; ajout seul
+    log/2026-10.iphone.jsonl
     cache.sqlite              # ignoré par git ; reconstruit si absent
   .gitignore                  # contient au minimum .app/cache.sqlite
 ```
@@ -110,8 +113,9 @@ ligne de fermeture `:::`. Les deux lignes commencent en colonne 0.
 
 - `<type>` ∈ `qa`, `cloze` (implémentés) ; `free`, `estimate` (réservés : un
   analyseur v1 les reconnaît, émet un avertissement et ne crée pas de carte).
-- `{#<id>}` est facultatif. Forme : `c-` suivi de 4 à 8 caractères
-  `[0-9a-z]`. **Seule l'app attribue les identifiants** (sous-projet 2). Les
+- `{#<id>}` est facultatif. Forme : `c-` suivi de 6 à 8 caractères
+  `[0-9a-z]`, **tirés au hasard** et jamais séquentiels, pour que deux
+  appareils puissent attribuer des identifiants sans se coordonner. **Seule l'app attribue les identifiants** (sous-projet 2). Les
   agents et le skill n'en écrivent jamais. Une carte sans identifiant est
   valide.
 - Un bloc ne peut pas contenir d'autre bloc. Une ligne `:::` à l'intérieur
@@ -124,7 +128,7 @@ plusieurs lignes, avec équations et code.
 
 **`cloze`** : un seul corps Markdown contenant des trous `{{cN::texte}}` ou
 `{{cN::texte::indice}}`, avec N ≥ 1 entier. Chaque N distinct produit une
-sous-carte, identifiée `<id>.<N>` (ex. `c-91be.2`). Tous les trous portant le
+sous-carte, identifiée `<id>.<N>` (ex. `c-91be0q.2`). Tous les trous portant le
 même N sont masqués ensemble. Au moins un trou est obligatoire et le texte d'un
 trou ne peut pas être vide. Les trous peuvent se trouver dans du LaTeX
 (`$\mathrm{EL} = {{c1::PD}} \times \mathrm{LGD}$`) ; leur rendu est l'affaire
@@ -163,9 +167,15 @@ dans la note ce qu'on garde, puis on supprime le fichier.
 
 ### 3.5 Journal
 
-`.app/log/<AAAA-MM>.jsonl` : une ligne JSON par événement, horodatée en UTC.
-Le fichier du mois est choisi d'après `ts`. On n'y fait que des ajouts, aucune
-réécriture.
+`.app/log/<AAAA-MM>.<appareil>.jsonl` : une ligne JSON par événement,
+horodatée en UTC. Le fichier du mois est choisi d'après `ts`. On n'y fait que
+des ajouts, aucune réécriture.
+
+`<appareil>` (`[a-z0-9-]+`, ex. `mac`, `iphone`, `poste-pro`) est configuré
+localement sur chaque appareil, **hors de la base** (la base est synchronisée,
+pas ce réglage). Chaque appareil n'écrit que dans ses propres fichiers. Deux
+appareils ne modifient donc jamais le même fichier, et une synchronisation par
+git ou iCloud ne crée aucun conflit sur le journal.
 
 Champs communs : `ts` (ISO 8601 UTC), `ev` (type d'événement).
 
@@ -176,8 +186,9 @@ Champs communs : `ts` (ISO 8601 UTC), `ev` (type d'événement).
 | `triage` | `inbox_file`, `action` (`accept`, `edit`, `reject`), `reason` (si rejet), `proposed_by` | app |
 
 Le sous-projet 1 spécifie ce format ; il ne produit aucun événement. Le
-cache SQLite se reconstruit en rejouant tous les fichiers du journal dans
-l'ordre de `ts`.
+cache SQLite se reconstruit en rejouant tous les fichiers du journal, tous
+appareils confondus, dans l'ordre de `ts`. En cas d'égalité, on départage par
+nom d'appareil, puis par ordre des lignes.
 
 ## 4. Skill de capture
 
@@ -278,6 +289,8 @@ consécutifs (ex. c1 et c3 sans c2).
   sert à réviser le skill avant le sous-projet 2.
 
 ## 8. Questions ouvertes (sans effet sur le sous-projet 1)
+
+- Synchronisation de la base perso entre Mac et iPhone : git ou iCloud Drive (sous-projet 3). Les notes Markdown restent exposées aux conflits si on les modifie sur les deux appareils ; les copies de conflit d'iCloud (« note 2.md ») devront être détectées.
 
 - LLM autorisé au travail (à vérifier auprès de l'employeur).
 - Lancement d'un exécutable Tauri non signé sur le poste pro (voir §1).
