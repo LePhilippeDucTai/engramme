@@ -4,11 +4,15 @@
 //! is the only function that reads from disk.
 #![forbid(unsafe_code)]
 
+mod block;
 mod diagnostic;
+mod fence;
 mod fs;
 mod id;
 mod model;
 mod note;
+mod qa;
+mod source;
 
 pub use diagnostic::{Diagnostic, DiagnosticKind, Parsed, Severity};
 pub use fs::read_note;
