@@ -67,6 +67,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "engramme-cli"
+version = "0.1.0"
+dependencies = [
+ "engramme-format",
+]
+
+[[package]]
 name = "engramme-format"
 version = "0.1.0"
 dependencies = [

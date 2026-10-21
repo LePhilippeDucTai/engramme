@@ -1,0 +1,15 @@
+[package]
+name = "engramme-cli"
+description = "Command-line interface of engramme (engramme check)"
+publish = false
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "engramme-dev"
+path = "src/main.rs"
+
+[dependencies]
+engramme-format = { path = "../engramme-format" }
