@@ -227,3 +227,116 @@ fn binary_wires_run() {
         )
     );
 }
+
+const I: &str = "tests/fixtures/broken/inbox/2026-10-21T0905-claude-pd-horizon.md:8: error: card id `{#c-h4v9ke}` is not allowed in a proposal: remove it, only the app assigns ids [id-in-proposal]";
+const D: &str = "tests/fixtures/broken/notes/pd.md:6: error: duplicate card id `c-7tq2lm`: first used at tests/fixtures/broken/notes/ead.md:3 [duplicate-id]";
+const S: &str = "tests/fixtures/broken/notes/pd.md:12: error: qa card has no `---` line between front and back [missing-separator]";
+const C: &str = "tests/fixtures/broken/notes/pd.md:17: warning: cloze numbers are not consecutive: missing c2 [non-consecutive-cloze-numbers]";
+const R: &str = "tests/fixtures/reserved.md:3: warning: card type `free` is reserved for a future version: block ignored [reserved-block-type]";
+
+fn lines(lines: &[&str]) -> String {
+    lines.iter().map(|line| format!("{line}\n")).collect()
+}
+
+fn broken_report() -> String {
+    lines(&[I, D, S, C, "checked 3 files: 3 errors, 1 warning"])
+}
+
+#[test]
+fn broken_vault_reports_files_and_lines() {
+    assert_eq!(
+        cli(&["check", "tests/fixtures/broken"], None),
+        (1, broken_report(), String::new())
+    );
+}
+
+#[test]
+fn engramme_dir_names_the_vault() {
+    assert_eq!(
+        cli(&["check"], Some("tests/fixtures/broken")),
+        (1, broken_report(), String::new())
+    );
+}
+
+#[test]
+fn paths_take_precedence_over_engramme_dir() {
+    assert_eq!(
+        cli(
+            &["check", "tests/fixtures/reserved.md"],
+            Some("tests/fixtures/missing")
+        ),
+        (
+            0,
+            lines(&[R, "checked 1 file: 0 errors, 1 warning"]),
+            String::new()
+        )
+    );
+}
+
+#[test]
+fn lone_note_sees_only_its_own_ids() {
+    assert_eq!(
+        cli(&["check", "tests/fixtures/broken/notes/pd.md"], None),
+        (
+            1,
+            lines(&[S, C, "checked 1 file: 1 error, 1 warning"]),
+            String::new()
+        )
+    );
+}
+
+#[test]
+fn lone_inbox_file_is_a_proposal() {
+    assert_eq!(
+        cli(
+            &[
+                "check",
+                "tests/fixtures/broken/inbox/2026-10-21T0905-claude-pd-horizon.md"
+            ],
+            None
+        ),
+        (
+            1,
+            lines(&[I, "checked 1 file: 1 error, 0 warnings"]),
+            String::new()
+        )
+    );
+}
+
+#[test]
+fn warnings_alone_exit_with_0() {
+    assert_eq!(
+        cli(&["check", "tests/fixtures/reserved.md"], None),
+        (
+            0,
+            lines(&[R, "checked 1 file: 0 errors, 1 warning"]),
+            String::new()
+        )
+    );
+}
+
+#[test]
+fn paths_are_checked_in_the_order_given() {
+    assert_eq!(
+        cli(
+            &[
+                "check",
+                "tests/fixtures/reserved.md",
+                "tests/fixtures/broken/notes/pd.md"
+            ],
+            None
+        ),
+        (
+            1,
+            lines(&[R, S, C, "checked 2 files: 1 error, 2 warnings"]),
+            String::new()
+        )
+    );
+}
+
+#[test]
+fn binary_reports_the_broken_vault() {
+    let expected = (Some(1), broken_report(), String::new());
+    assert_eq!(binary(&["check", "tests/fixtures/broken"], None), expected);
+    assert_eq!(binary(&["check"], Some("tests/fixtures/broken")), expected);
+}
