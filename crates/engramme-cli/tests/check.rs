@@ -340,3 +340,113 @@ fn binary_reports_the_broken_vault() {
     assert_eq!(binary(&["check", "tests/fixtures/broken"], None), expected);
     assert_eq!(binary(&["check"], Some("tests/fixtures/broken")), expected);
 }
+
+const EXAMPLE: &str = "../../examples/savoir";
+
+fn example_report() -> String {
+    "checked 6 files: 0 errors, 0 warnings\n".to_owned()
+}
+
+#[test]
+fn example_vault_is_valid() {
+    assert_eq!(
+        cli(&["check", EXAMPLE], None),
+        (0, example_report(), String::new())
+    );
+}
+
+#[test]
+fn example_vault_from_engramme_dir() {
+    assert_eq!(
+        cli(&["check"], Some(EXAMPLE)),
+        (0, example_report(), String::new())
+    );
+}
+
+#[test]
+fn example_inbox_file_alone() {
+    let file = format!("{EXAMPLE}/inbox/2026-10-20T1432-claude-ccf-horizon.md");
+    assert_eq!(
+        cli(&["check", &file], None),
+        (
+            0,
+            "checked 1 file: 0 errors, 0 warnings\n".to_owned(),
+            String::new()
+        )
+    );
+}
+
+#[test]
+fn example_vault_content() {
+    use std::path::Path;
+    let root = Path::new(EXAMPLE);
+    let parsed = engramme_format::read_vault(root);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    let notes: Vec<(&Path, &str, usize, usize)> = parsed
+        .value
+        .notes
+        .iter()
+        .map(|note| {
+            (
+                note.path.strip_prefix(root).unwrap(),
+                note.title.as_str(),
+                note.cards.len(),
+                note.cards.iter().filter(|card| card.id.is_none()).count(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        notes,
+        [
+            (
+                Path::new("notes/credit-risk/ead-and-ccf.md"),
+                "EAD and credit conversion factors",
+                2,
+                0
+            ),
+            (
+                Path::new("notes/credit-risk/expected-loss.md"),
+                "Expected loss",
+                3,
+                1
+            ),
+            (
+                Path::new("notes/credit-risk/lgd-downturn.md"),
+                "Downturn LGD",
+                2,
+                0
+            ),
+            (
+                Path::new("notes/credit-risk/probability-of-default.md"),
+                "Probability of default",
+                3,
+                0
+            ),
+            (Path::new("notes/ifrs9/staging.md"), "IFRS 9 staging", 3, 0),
+        ]
+    );
+    let proposals = &parsed.value.proposals;
+    assert_eq!(proposals.len(), 1);
+    assert_eq!(
+        proposals[0].path.strip_prefix(root).unwrap(),
+        Path::new("inbox/2026-10-20T1432-claude-ccf-horizon.md")
+    );
+    assert_eq!(proposals[0].cards.len(), 1);
+    let target = proposals[0].frontmatter.target.as_deref().unwrap();
+    assert_eq!(target, "notes/credit-risk/ead-and-ccf.md");
+    assert!(root.join(target).is_file());
+}
+
+#[test]
+fn example_vault_ignores_the_cache() {
+    let gitignore = std::fs::read_to_string(format!("{EXAMPLE}/.gitignore")).unwrap();
+    assert!(gitignore.lines().any(|line| line == ".app/cache.sqlite"));
+}
+
+#[test]
+fn binary_checks_the_example_vault() {
+    assert_eq!(
+        binary(&["check", EXAMPLE], None),
+        (Some(0), example_report(), String::new())
+    );
+}
