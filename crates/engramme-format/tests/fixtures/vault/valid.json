@@ -1,0 +1,90 @@
+{
+  "diagnostics": [
+    {
+      "code": "reserved-block-type",
+      "file": "notes/ifrs9.md",
+      "line": 11,
+      "severity": "warning"
+    }
+  ],
+  "notes": [
+    {
+      "cards": [
+        {
+          "back": "Capital must cover the losses of a downturn, when recoveries are lowest.",
+          "front": "Why must the LGD used for capital reflect a downturn?",
+          "id": "c-91be0q",
+          "line": 9,
+          "type": "qa"
+        },
+        {
+          "deletions": [
+            {
+              "hint": null,
+              "number": 1,
+              "text": "\\mathrm{LGD}"
+            }
+          ],
+          "id": "c-7k2m9x",
+          "line": 15,
+          "text": "$\\mathrm{EL} = \\mathrm{PD} \\times {{c1::\\mathrm{LGD}}} \\times \\mathrm{EAD}$",
+          "type": "cloze"
+        }
+      ],
+      "frontmatter": {
+        "extra": {},
+        "sources": [],
+        "tags": [
+          "credit-risk",
+          "lgd"
+        ],
+        "title": "LGD downturn"
+      },
+      "path": "notes/credit-risk/lgd-downturn.md",
+      "title": "LGD downturn"
+    },
+    {
+      "cards": [
+        {
+          "back": "A significant increase in credit risk since initial recognition.",
+          "front": "What moves an exposure from stage 1 to stage 2?",
+          "id": null,
+          "line": 5,
+          "type": "qa"
+        }
+      ],
+      "frontmatter": {
+        "extra": {},
+        "sources": [],
+        "tags": [],
+        "title": null
+      },
+      "path": "notes/ifrs9.md",
+      "title": "IFRS 9"
+    }
+  ],
+  "proposals": [
+    {
+      "cards": [
+        {
+          "back": "30 days.",
+          "front": "After how many days past due is a significant increase in credit risk presumed?",
+          "id": null,
+          "line": 10,
+          "type": "qa"
+        }
+      ],
+      "frontmatter": {
+        "context": "Reviewing the IFRS 9 staging rules of a retail portfolio",
+        "date": "2026-10-20T14:32:00+02:00",
+        "extra": {},
+        "proposed_by": "claude",
+        "sources": [],
+        "tags": [],
+        "target": "notes/ifrs9.md",
+        "why": "The 30 days past due backstop is easy to forget"
+      },
+      "path": "inbox/2026-10-20T1432-claude-ifrs9-staging.md"
+    }
+  ]
+}

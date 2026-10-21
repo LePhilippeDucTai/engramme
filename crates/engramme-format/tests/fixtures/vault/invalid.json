@@ -1,0 +1,150 @@
+{
+  "diagnostics": [
+    {
+      "code": "missing-required-key",
+      "file": "inbox/2026-10-20T1432-claude-dup-id.md",
+      "line": 1,
+      "severity": "error"
+    },
+    {
+      "code": "id-in-proposal",
+      "file": "inbox/2026-10-20T1432-claude-dup-id.md",
+      "line": 7,
+      "severity": "error"
+    },
+    {
+      "code": "unexpected-file-name",
+      "file": "inbox/misnamed.md",
+      "line": 1,
+      "severity": "warning"
+    },
+    {
+      "code": "duplicate-id",
+      "file": "notes/a-b.md",
+      "line": 3,
+      "severity": "error"
+    },
+    {
+      "code": "duplicate-id",
+      "file": "notes/a.md",
+      "line": 7,
+      "severity": "error"
+    },
+    {
+      "code": "unclosed-block",
+      "file": "notes/a.md",
+      "line": 11,
+      "severity": "error"
+    }
+  ],
+  "notes": [
+    {
+      "cards": [
+        {
+          "back": "The first one in walk order.",
+          "front": "Which occurrence of an id comes first?",
+          "id": "c-91be0q",
+          "line": 1,
+          "type": "qa"
+        }
+      ],
+      "frontmatter": {
+        "extra": {},
+        "sources": [],
+        "tags": [],
+        "title": null
+      },
+      "path": "notes/a/b.md",
+      "title": "b"
+    },
+    {
+      "cards": [
+        {
+          "back": "Yes, in `notes/a/b.md`, which comes first.",
+          "front": "Is this id used elsewhere?",
+          "id": "c-91be0q",
+          "line": 3,
+          "type": "qa"
+        }
+      ],
+      "frontmatter": {
+        "extra": {},
+        "sources": [],
+        "tags": [],
+        "title": null
+      },
+      "path": "notes/a-b.md",
+      "title": "A-B"
+    },
+    {
+      "cards": [
+        {
+          "back": "Yes.",
+          "front": "First card with this id?",
+          "id": "c-3x9k2p",
+          "line": 1,
+          "type": "qa"
+        },
+        {
+          "deletions": [
+            {
+              "hint": null,
+              "number": 1,
+              "text": "second"
+            }
+          ],
+          "id": "c-3x9k2p",
+          "line": 7,
+          "text": "The same id on a {{c1::second}} card is a duplicate.",
+          "type": "cloze"
+        }
+      ],
+      "frontmatter": {
+        "extra": {},
+        "sources": [],
+        "tags": [],
+        "title": null
+      },
+      "path": "notes/a.md",
+      "title": "a"
+    }
+  ],
+  "proposals": [
+    {
+      "cards": [],
+      "frontmatter": {
+        "context": "Copying a card from a note",
+        "date": "2026-10-20T14:32:00+02:00",
+        "extra": {},
+        "proposed_by": "claude",
+        "sources": [],
+        "tags": [],
+        "target": "notes/a.md",
+        "why": null
+      },
+      "path": "inbox/2026-10-20T1432-claude-dup-id.md"
+    },
+    {
+      "cards": [
+        {
+          "back": "No: its name only yields a warning.",
+          "front": "Does a misnamed proposal fail the check?",
+          "id": null,
+          "line": 8,
+          "type": "qa"
+        }
+      ],
+      "frontmatter": {
+        "context": "Naming a proposal by hand",
+        "date": "2026-10-20T14:32:00+02:00",
+        "extra": {},
+        "proposed_by": "claude",
+        "sources": [],
+        "tags": [],
+        "target": "notes/a.md",
+        "why": "A misnamed proposal is still read"
+      },
+      "path": "inbox/misnamed.md"
+    }
+  ]
+}

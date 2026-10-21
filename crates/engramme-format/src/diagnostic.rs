@@ -45,7 +45,7 @@ pub enum DiagnosticKind {
     NoClozeDeletion,
     /// A cloze deletion is empty, badly numbered or never closed.
     InvalidClozeDeletion,
-    /// The file cannot be read or is not UTF-8.
+    /// The file or directory cannot be read, or the file is not UTF-8.
     UnreadableFile,
     /// A required key of a proposal is missing or empty.
     MissingRequiredKey,
@@ -57,6 +57,8 @@ pub enum DiagnosticKind {
     TooManyCards,
     /// A proposal card has an `{#<id>}`: only the app assigns ids.
     IdInProposal,
+    /// A card id is used again among the notes of a vault.
+    DuplicateId,
     /// The card type is reserved for a future version.
     ReservedBlockType,
     /// Cloze numbers skip a value.
@@ -65,6 +67,8 @@ pub enum DiagnosticKind {
     UnclosedCodeFence,
     /// A proposal file name does not follow `<YYYY-MM-DD>T<HHMM>-<agent>-<topic>.md`.
     UnexpectedFileName,
+    /// A vault has neither a `notes/` nor an `inbox/` directory.
+    NotAVault,
 }
 
 impl DiagnosticKind {
@@ -86,10 +90,12 @@ impl DiagnosticKind {
             DiagnosticKind::NoCard => "no-card",
             DiagnosticKind::TooManyCards => "too-many-cards",
             DiagnosticKind::IdInProposal => "id-in-proposal",
+            DiagnosticKind::DuplicateId => "duplicate-id",
             DiagnosticKind::ReservedBlockType => "reserved-block-type",
             DiagnosticKind::NonConsecutiveClozeNumbers => "non-consecutive-cloze-numbers",
             DiagnosticKind::UnclosedCodeFence => "unclosed-code-fence",
             DiagnosticKind::UnexpectedFileName => "unexpected-file-name",
+            DiagnosticKind::NotAVault => "not-a-vault",
         }
     }
 
@@ -99,7 +105,8 @@ impl DiagnosticKind {
             DiagnosticKind::ReservedBlockType
             | DiagnosticKind::NonConsecutiveClozeNumbers
             | DiagnosticKind::UnclosedCodeFence
-            | DiagnosticKind::UnexpectedFileName => Severity::Warning,
+            | DiagnosticKind::UnexpectedFileName
+            | DiagnosticKind::NotAVault => Severity::Warning,
             _ => Severity::Error,
         }
     }
@@ -152,7 +159,7 @@ impl fmt::Display for Diagnostic {
 pub struct Parsed<T> {
     /// The parsed value.
     pub value: T,
-    /// Diagnostics, sorted by line.
+    /// Diagnostics, sorted by line; for a vault, by file then line.
     pub diagnostics: Vec<Diagnostic>,
 }
 

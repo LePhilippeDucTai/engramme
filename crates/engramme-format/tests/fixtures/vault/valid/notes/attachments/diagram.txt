@@ -1,0 +1,4 @@
+Not a note: only `.md` files are read.
+
+:::qa
+never closed

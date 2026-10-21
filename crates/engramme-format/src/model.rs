@@ -123,3 +123,14 @@ pub struct ProposalFrontmatter {
     /// Unknown keys, kept as they are.
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
+
+/// A whole vault: the notes of `notes/` and the proposals of `inbox/`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Vault {
+    /// Root directory, as given to [`read_vault`](crate::read_vault).
+    pub root: PathBuf,
+    /// Notes under `notes/`, subdirectories included, in walk order.
+    pub notes: Vec<Note>,
+    /// Proposals directly in `inbox/`, in walk order.
+    pub proposals: Vec<InboxProposal>,
+}
