@@ -1,0 +1,28 @@
+{
+  "cards": [
+    {
+      "back": "A",
+      "front": "Q",
+      "id": null,
+      "line": 6,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "invalid-frontmatter",
+      "line": 3,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "context": null,
+    "date": null,
+    "extra": {},
+    "proposed_by": null,
+    "sources": [],
+    "tags": [],
+    "target": null,
+    "why": null
+  }
+}

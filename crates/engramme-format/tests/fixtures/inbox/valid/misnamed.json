@@ -1,0 +1,28 @@
+{
+  "cards": [
+    {
+      "back": "To avoid understating the PD with a window of benign years.",
+      "front": "Why calibrate a PD over a full economic cycle?",
+      "id": null,
+      "line": 9,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "unexpected-file-name",
+      "line": 1,
+      "severity": "warning"
+    }
+  ],
+  "frontmatter": {
+    "context": "Debugging a PD calibration",
+    "date": "2026-10-20T10:00",
+    "extra": {},
+    "proposed_by": "codex",
+    "sources": [],
+    "tags": [],
+    "target": "notes/credit-risk/pd-calibration.md",
+    "why": "A calibration on a too short window understates the PD"
+  }
+}

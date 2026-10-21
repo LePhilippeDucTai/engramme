@@ -1,0 +1,53 @@
+{
+  "cards": [
+    {
+      "back": "A1",
+      "front": "Q1",
+      "id": null,
+      "line": 9,
+      "type": "qa"
+    },
+    {
+      "deletions": [
+        {
+          "hint": null,
+          "number": 1,
+          "text": "three"
+        }
+      ],
+      "id": null,
+      "line": 19,
+      "text": "{{c1::three}}",
+      "type": "cloze"
+    },
+    {
+      "back": "A4",
+      "front": "Q4",
+      "id": null,
+      "line": 23,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "missing-separator",
+      "line": 15,
+      "severity": "error"
+    },
+    {
+      "code": "too-many-cards",
+      "line": 23,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "context": "Testing",
+    "date": "2026-10-20T14:32",
+    "extra": {},
+    "proposed_by": "claude",
+    "sources": [],
+    "tags": [],
+    "target": "notes/test.md",
+    "why": "Testing"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "cards": [
+    {
+      "back": "A",
+      "front": "Q",
+      "id": null,
+      "line": 7,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "missing-required-key",
+      "line": 1,
+      "severity": "error"
+    },
+    {
+      "code": "missing-required-key",
+      "line": 1,
+      "severity": "error"
+    },
+    {
+      "code": "invalid-frontmatter",
+      "line": 3,
+      "severity": "error"
+    },
+    {
+      "code": "missing-required-key",
+      "line": 4,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "context": null,
+    "date": null,
+    "extra": {},
+    "proposed_by": "claude",
+    "sources": [],
+    "tags": [],
+    "target": null,
+    "why": null
+  }
+}

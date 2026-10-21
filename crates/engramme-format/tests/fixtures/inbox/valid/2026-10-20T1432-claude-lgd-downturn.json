@@ -1,0 +1,42 @@
+{
+  "cards": [
+    {
+      "back": "Because losses given default rise in downturns, when defaults cluster.",
+      "front": "Why does capital use a downturn LGD rather than a long-run average?",
+      "id": null,
+      "line": 16,
+      "type": "qa"
+    },
+    {
+      "deletions": [
+        {
+          "hint": "probability",
+          "number": 1,
+          "text": "\\mathrm{PD}"
+        }
+      ],
+      "id": null,
+      "line": 22,
+      "text": "$\\mathrm{EL} = {{c1::\\mathrm{PD}::probability}} \\times \\mathrm{LGD} \\times \\mathrm{EAD}$",
+      "type": "cloze"
+    }
+  ],
+  "diagnostics": [],
+  "frontmatter": {
+    "context": "Reviewing the downturn LGD estimation",
+    "date": "2026-10-20T14:32:00+02:00",
+    "extra": {
+      "title": "Kept in extra"
+    },
+    "proposed_by": "claude",
+    "sources": [
+      "Basel III, CRE36"
+    ],
+    "tags": [
+      "credit-risk",
+      "lgd"
+    ],
+    "target": "notes/credit-risk/lgd-downturn.md",
+    "why": "The downturn adjustment is a regulatory requirement that is easy to forget"
+  }
+}

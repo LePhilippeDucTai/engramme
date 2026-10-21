@@ -1,3 +1,26 @@
+//! Inbox proposals: one test per rule of spec §3.4 and per inbox-level
+//! diagnostic of §5.
+//!
+//! Rule → tests
+//! - §3.4 file name `<YYYY-MM-DD>T<HHMM>-<agent>-<topic>.md`, `-2` suffix: `file_name_convention`
+//! - §3.4 required frontmatter: `frontmatter_is_required`, `invalid_yaml_in_proposal`, `unclosed_frontmatter_in_proposal`
+//! - §3.4 the five required keys, non-empty strings: `missing_required_keys_are_reported_in_order`, `empty_required_values`, `required_keys_must_be_strings`, `valid_proposal`
+//! - §3.4 `date` ISO 8601: `date_accepts_iso_8601_date_times`, `date_rejects_other_forms`
+//! - §3.4 `target` under `notes/`: `target_accepts_paths_under_notes`, `target_rejections`
+//! - §3.4 optional `tags` and `sources`: `optional_tags_and_sources`
+//! - §3.4 unknown keys: `unknown_keys_are_kept_in_extra`
+//! - §3.4 optional prose: `valid_proposal`
+//! - §3.4 1 to 3 card blocks: `card_blocks_count_from_one_to_three`, `no_card_is_an_error`, `more_than_three_cards_is_an_error`
+//! - §3.4 no card id: `id_in_proposal_is_an_error`
+//! - §5 missing required key (`missing-required-key`): `missing_required_keys_are_reported_in_order`, `proposal_frontmatter_messages`
+//! - §5 `target` outside `notes/` (`invalid-target`): `target_rejections`, `proposal_frontmatter_messages`
+//! - §5 more than 3 cards (`too-many-cards`): `more_than_three_cards_is_an_error`, `proposal_body_messages`
+//! - §5 id in a proposal (`id-in-proposal`): `id_in_proposal_is_an_error`, `proposal_body_messages`
+//! - added: `no-card` (`no_card_is_an_error`), `unexpected-file-name` (`file_name_convention`), `unreadable-file` (`read_proposal_reports_unreadable_files`)
+//! - diagnostics sorted by line: `proposal_diagnostics_are_sorted_by_line`
+//! - fixtures → expected proposals, CRLF and BOM: `fixtures_match_snapshots`, `fixtures_ignore_line_endings_and_bom`
+//! - robustness: `proposal_parser_never_panics_on_odd_inputs`
+
 use std::path::{Path, PathBuf};
 
 use engramme_format::{CardKind, InboxProposal, Parsed, parse_proposal, read_proposal};
@@ -578,4 +601,136 @@ fn proposal_diagnostics_are_sorted_by_line() {
             (20, "too-many-cards"),
         ]
     );
+}
+
+const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/inbox");
+
+fn fixture_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    entries.sort();
+    for path in entries {
+        if path.is_dir() {
+            fixture_files(&path, out);
+        } else if path.extension().is_some_and(|ext| ext == "md") {
+            out.push(path);
+        }
+    }
+}
+
+fn snapshot(parsed: &Parsed<InboxProposal>) -> serde_json::Value {
+    let diagnostics: Vec<serde_json::Value> = parsed
+        .diagnostics
+        .iter()
+        .map(|d| serde_json::json!({"line": d.line, "severity": d.severity, "code": d.kind.code()}))
+        .collect();
+    serde_json::json!({
+        "frontmatter": parsed.value.frontmatter,
+        "cards": parsed.value.cards,
+        "diagnostics": diagnostics,
+    })
+}
+
+#[test]
+fn fixtures_match_snapshots() {
+    let mut files = Vec::new();
+    fixture_files(Path::new(FIXTURES), &mut files);
+    assert!(!files.is_empty());
+    let update = std::env::var_os("UPDATE_FIXTURES").is_some();
+    let mut failures = Vec::new();
+    for md in &files {
+        let parsed = read_proposal(md);
+        let relative = md.strip_prefix(FIXTURES).unwrap();
+        let in_valid = relative.starts_with("valid");
+        if in_valid && parsed.has_errors() {
+            failures.push(format!("{}: errors in a valid fixture", relative.display()));
+        }
+        if !in_valid && !parsed.has_errors() {
+            failures.push(format!(
+                "{}: no error in an invalid fixture",
+                relative.display()
+            ));
+        }
+        let actual = snapshot(&parsed);
+        let json = md.with_extension("json");
+        if update {
+            let text = serde_json::to_string_pretty(&actual).unwrap() + "\n";
+            std::fs::write(&json, text).unwrap();
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&json) else {
+            failures.push(format!("{}: missing snapshot", json.display()));
+            continue;
+        };
+        let expected: serde_json::Value = serde_json::from_str(&text).unwrap();
+        if expected != actual {
+            failures.push(format!(
+                "{}:\nexpected: {}\nactual:   {}",
+                relative.display(),
+                serde_json::to_string_pretty(&expected).unwrap(),
+                serde_json::to_string_pretty(&actual).unwrap()
+            ));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn fixtures_ignore_line_endings_and_bom() {
+    let mut files = Vec::new();
+    fixture_files(Path::new(FIXTURES), &mut files);
+    for md in &files {
+        let lf = std::fs::read_to_string(md).unwrap().replace("\r\n", "\n");
+        let expected = snapshot(&parse_proposal(md, &lf));
+        let crlf = lf.replace('\n', "\r\n");
+        assert_eq!(
+            snapshot(&parse_proposal(md, &crlf)),
+            expected,
+            "CRLF {md:?}"
+        );
+        let bom = format!("\u{feff}{lf}");
+        assert_eq!(snapshot(&parse_proposal(md, &bom)), expected, "BOM {md:?}");
+    }
+}
+
+#[test]
+fn proposal_parser_never_panics_on_odd_inputs() {
+    let mut sources: Vec<String> = [
+        "",
+        "\u{feff}",
+        "---",
+        "---\n---",
+        "---\n- a\n---",
+        ":::qa {#",
+        ":::qa {#}\n:::",
+        ":::free {#c-abc123}",
+    ]
+    .iter()
+    .map(|s| (*s).to_owned())
+    .collect();
+    for date in [
+        "é",
+        "2026-10-2é",
+        "2026-10-20T14:3é",
+        "2026-10-20T14:32:0",
+        "2026-10-20T14:32+02:0",
+    ] {
+        sources.push(format!("---\ndate: '{date}'\n---\n"));
+    }
+    for target in ["C:", "/", "\\", "é"] {
+        sources.push(format!("---\ntarget: '{target}'\n---\n"));
+    }
+    for path in [
+        "inbox/x.md",
+        "inbox/2026-10-2é-x-y.md",
+        "inbox/2026-10-20T14é2-x-y.md",
+        "inbox/.md",
+        "",
+    ] {
+        for source in &sources {
+            let _ = parse_proposal(Path::new(path), source);
+        }
+    }
 }

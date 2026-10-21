@@ -1,0 +1,25 @@
+{
+  "cards": [],
+  "diagnostics": [
+    {
+      "code": "no-card",
+      "line": 1,
+      "severity": "error"
+    },
+    {
+      "code": "reserved-block-type",
+      "line": 11,
+      "severity": "warning"
+    }
+  ],
+  "frontmatter": {
+    "context": "Testing",
+    "date": "2026-10-20T14:32",
+    "extra": {},
+    "proposed_by": "claude",
+    "sources": [],
+    "tags": [],
+    "target": "notes/test.md",
+    "why": "Testing"
+  }
+}

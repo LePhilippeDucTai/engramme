@@ -1,0 +1,48 @@
+{
+  "cards": [
+    {
+      "back": "Lifetime expected credit losses.\n\n```text\n---\n:::\n```",
+      "front": "Which ECL horizon applies to a stage 2 exposure?",
+      "id": null,
+      "line": 9,
+      "type": "qa"
+    },
+    {
+      "deletions": [
+        {
+          "hint": null,
+          "number": 1,
+          "text": "2"
+        }
+      ],
+      "id": null,
+      "line": 20,
+      "text": "A significant increase in credit risk moves an exposure to stage {{c1::2}}.",
+      "type": "cloze"
+    },
+    {
+      "back": "Credit impairment, typically default.",
+      "front": "What triggers stage 3?",
+      "id": null,
+      "line": 28,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "reserved-block-type",
+      "line": 24,
+      "severity": "warning"
+    }
+  ],
+  "frontmatter": {
+    "context": "Implementing the IFRS 9 staging rules",
+    "date": "2026-10-21T09:05Z",
+    "extra": {},
+    "proposed_by": "copilot",
+    "sources": [],
+    "tags": [],
+    "target": "notes/accounting/ifrs9/staging.md",
+    "why": "The staging criteria drive the expected credit loss horizon"
+  }
+}

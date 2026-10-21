@@ -1,0 +1,28 @@
+{
+  "cards": [
+    {
+      "back": "Yes.",
+      "front": "Is a frontmatter required in a proposal?",
+      "id": null,
+      "line": 1,
+      "type": "qa"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "missing-required-key",
+      "line": 1,
+      "severity": "error"
+    }
+  ],
+  "frontmatter": {
+    "context": null,
+    "date": null,
+    "extra": {},
+    "proposed_by": null,
+    "sources": [],
+    "tags": [],
+    "target": null,
+    "why": null
+  }
+}
