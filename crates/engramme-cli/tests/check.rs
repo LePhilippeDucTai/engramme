@@ -2,7 +2,7 @@
 //! - `run(args) -> exit code`, program name skipped, binary wiring and real environment: `usage_errors_exit_with_2`, `binary_wires_run`
 //! - help and version on stdout, exit 0: `help_goes_to_stdout`, `version_goes_to_stdout`
 //! - usage errors on stderr, exit 2: `usage_errors_exit_with_2`, `non_utf8_arguments_do_not_panic`
-//! - `--` ends options: `missing_path_is_a_diagnostic`
+//! - `--` ends options, one line per diagnostic even for a path with a line break: `missing_path_is_a_diagnostic`
 //! - `ENGRAMME_DIR` used without paths, ignored with paths, unset, empty or not a directory: `engramme_dir_names_the_vault`, `paths_take_precedence_over_engramme_dir`, `missing_engramme_dir`, `engramme_dir_must_be_a_directory`
 //! - vault, lone note, lone inbox file: `broken_vault_reports_files_and_lines`, `lone_note_sees_only_its_own_ids`, `lone_inbox_file_is_a_proposal`, `example_inbox_file_alone`
 //! - output format, paths as given, order of paths, summary and plurals: `broken_vault_reports_files_and_lines`, `paths_are_checked_in_the_order_given`
@@ -218,6 +218,13 @@ fn missing_path_is_a_diagnostic() {
         assert_eq!(err, "");
         assert_unreadable(&out, path, "checked 0 files: 1 error, 0 warnings");
     }
+    let (code, out, _) = cli(&["check", "missing\nfile.md"], None);
+    assert_eq!(code, 1);
+    assert_unreadable(
+        &out,
+        "missing file.md",
+        "checked 0 files: 1 error, 0 warnings",
+    );
 }
 
 #[test]

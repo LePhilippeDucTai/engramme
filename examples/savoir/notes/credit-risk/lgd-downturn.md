@@ -20,7 +20,7 @@ where $r$ is the discount rate.
 :::qa {#c-k3j9sd}
 Why must the LGD used for IRB capital reflect an economic downturn?
 ---
-Recoveries are lowest when defaults are most frequent, so a long-run average LGD would understate the losses of the years in which defaults cluster.
+Recoveries tend to fall when defaults cluster, so a long-run average LGD can understate the losses of a downturn; the downturn LGD is never below the long-run average.
 :::
 
 :::cloze {#c-p6e1rx}

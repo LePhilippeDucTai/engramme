@@ -112,7 +112,8 @@ impl DiagnosticKind {
     }
 }
 
-/// A message about a file, at a 1-based line.
+/// A message about a file, at a 1-based line. Its `Display` is one line:
+/// `{file}:{line}: {severity}: {message} [{code}]`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct Diagnostic {
     /// File the diagnostic is about.
@@ -145,7 +146,7 @@ impl fmt::Display for Diagnostic {
         write!(
             f,
             "{}:{}: {}: {} [{}]",
-            self.file.display(),
+            self.file.display().to_string().replace(['\r', '\n'], " "),
             self.line,
             self.severity,
             self.message,
