@@ -1,0 +1,19 @@
+[package]
+name = "engramme-py"
+description = "Python package of engramme: the engramme command, built by maturin"
+publish = false
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# The Python module `engramme`. No Rust tests: the wheel is tested by running
+# `engramme check`, and `test = false` keeps `cargo test` from linking libpython.
+[lib]
+name = "engramme"
+crate-type = ["cdylib"]
+test = false
+
+[dependencies]
+engramme-cli = { path = "../engramme-cli" }
+pyo3.workspace = true
