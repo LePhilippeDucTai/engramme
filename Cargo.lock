@@ -71,6 +71,7 @@ name = "engramme-cli"
 version = "0.1.0"
 dependencies = [
  "engramme-format",
+ "serde_json",
 ]
 
 [[package]]
