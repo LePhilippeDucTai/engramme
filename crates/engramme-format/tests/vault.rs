@@ -1,8 +1,37 @@
+//! Vault checks: walk of `notes/` and `inbox/`, duplicate ids, role of a
+//! lone file, and the map of every §5 diagnostic to the tests that trigger it.
+//!
+//! Vault rules → tests
+//! - walk `notes/` recursively and `inbox/` flat, skip hidden entries, non-`.md` files, `.app/` and other root files: `walk_ignores_hidden_non_md_app_and_inbox_subdirectories`, `vault_fixtures_match_snapshots`
+//! - deterministic order, by path components: `walk_order_follows_path_components`, `vault_diagnostics_are_sorted_by_file_then_line`
+//! - symbolic links followed only to regular files: `symlinks_are_followed_only_to_files`
+//! - missing or unreadable directories: `missing_directories`, `unreadable_vault_paths`
+//! - duplicate ids among notes: `duplicate_ids_across_notes`, `duplicate_ids_within_a_note`, `every_later_occurrence_cites_the_first`, `qa_and_cloze_share_ids`, `cards_without_id_are_not_duplicates`, `proposal_ids_are_not_duplicates`, `duplicate_messages`
+//! - role of a lone file: `check_path_by_role`, `check_path_finds_duplicates_in_a_lone_note`
+//!
+//! §5 diagnostic → code → tests
+//! - unclosed block → `unclosed-block` → `unclosed_block_at_eof` (notes.rs)
+//! - unknown block type → `unknown-block-type` → `unknown_type_is_an_error` (notes.rs)
+//! - empty face in a `qa` → `empty-face` → `qa_empty_front`, `qa_empty_back` (notes.rs)
+//! - missing `---` in a `qa` → `missing-separator` → `qa_missing_separator` (notes.rs)
+//! - cloze without deletion, or empty deletion → `no-cloze-deletion`, `invalid-cloze-deletion` → `cloze_without_deletion`, `cloze_empty_deletion` (notes.rs)
+//! - malformed id → `malformed-id` → `malformed_id_is_an_error` (notes.rs)
+//! - duplicate id in the vault → `duplicate-id` → `duplicate_ids_across_notes`, `duplicate_ids_within_a_note`
+//! - invalid YAML frontmatter → `invalid-frontmatter` → `invalid_yaml_reports_file_line` (notes.rs), `invalid_yaml_in_proposal` (inbox.rs)
+//! - missing required key in a proposal → `missing-required-key` → `missing_required_keys_are_reported_in_order` (inbox.rs)
+//! - `target` outside `notes/` → `invalid-target` → `target_rejections` (inbox.rs)
+//! - more than 3 cards in a proposal → `too-many-cards` → `more_than_three_cards_is_an_error` (inbox.rs)
+//! - id in a proposal → `id-in-proposal` → `id_in_proposal_is_an_error` (inbox.rs)
+//! - reserved type (warning) → `reserved-block-type` → `reserved_types_warn_and_yield_no_card` (notes.rs)
+//! - non-consecutive cloze numbers (warning) → `non-consecutive-cloze-numbers` → `cloze_non_consecutive_numbers_warn` (notes.rs)
+//! - added: `invalid-block-header` → `invalid_block_header` (notes.rs); `unreadable-file` → `read_note_reports_unreadable_files` (notes.rs), `read_proposal_reports_unreadable_files` (inbox.rs), `unreadable_vault_paths`; `unclosed-code-fence` → `unclosed_code_fence_warns` (notes.rs); `no-card` → `no_card_is_an_error` (inbox.rs); `unexpected-file-name` → `file_name_convention` (inbox.rs); `not-a-vault` → `missing_directories`
+//! - every kind triggered, codes and severities stable: `every_diagnostic_kind_is_triggered`, `codes_and_severities_are_stable`
+
 use std::path::{Path, PathBuf};
 
 use engramme_format::{
-    Diagnostic, DiagnosticKind, Note, Parsed, Vault, check_path, duplicate_ids, parse_note,
-    read_vault,
+    Diagnostic, DiagnosticKind, Note, Parsed, Severity, Vault, check_path, duplicate_ids,
+    parse_note, parse_proposal, read_note, read_vault,
 };
 
 fn note(path: &str, lines: &[&str]) -> Note {
@@ -560,4 +589,173 @@ fn check_path_finds_duplicates_in_a_lone_note() {
     );
     // Alone, `notes/a-b.md` does not see the `c-91be0q` of `notes/a/b.md`.
     assert!(check_path(&root.join("notes/a-b.md")).is_empty());
+}
+
+const ALL_KINDS: [(DiagnosticKind, &str, Severity); 21] = [
+    (
+        DiagnosticKind::InvalidFrontmatter,
+        "invalid-frontmatter",
+        Severity::Error,
+    ),
+    (
+        DiagnosticKind::UnclosedBlock,
+        "unclosed-block",
+        Severity::Error,
+    ),
+    (
+        DiagnosticKind::InvalidBlockHeader,
+        "invalid-block-header",
+        Severity::Error,
+    ),
+    (
+        DiagnosticKind::UnknownBlockType,
+        "unknown-block-type",
+        Severity::Error,
+    ),
+    (DiagnosticKind::MalformedId, "malformed-id", Severity::Error),
+    (
+        DiagnosticKind::MissingSeparator,
+        "missing-separator",
+        Severity::Error,
+    ),
+    (DiagnosticKind::EmptyFace, "empty-face", Severity::Error),
+    (
+        DiagnosticKind::NoClozeDeletion,
+        "no-cloze-deletion",
+        Severity::Error,
+    ),
+    (
+        DiagnosticKind::InvalidClozeDeletion,
+        "invalid-cloze-deletion",
+        Severity::Error,
+    ),
+    (
+        DiagnosticKind::UnreadableFile,
+        "unreadable-file",
+        Severity::Error,
+    ),
+    (
+        DiagnosticKind::MissingRequiredKey,
+        "missing-required-key",
+        Severity::Error,
+    ),
+    (
+        DiagnosticKind::InvalidTarget,
+        "invalid-target",
+        Severity::Error,
+    ),
+    (DiagnosticKind::NoCard, "no-card", Severity::Error),
+    (
+        DiagnosticKind::TooManyCards,
+        "too-many-cards",
+        Severity::Error,
+    ),
+    (
+        DiagnosticKind::IdInProposal,
+        "id-in-proposal",
+        Severity::Error,
+    ),
+    (DiagnosticKind::DuplicateId, "duplicate-id", Severity::Error),
+    (
+        DiagnosticKind::ReservedBlockType,
+        "reserved-block-type",
+        Severity::Warning,
+    ),
+    (
+        DiagnosticKind::NonConsecutiveClozeNumbers,
+        "non-consecutive-cloze-numbers",
+        Severity::Warning,
+    ),
+    (
+        DiagnosticKind::UnclosedCodeFence,
+        "unclosed-code-fence",
+        Severity::Warning,
+    ),
+    (
+        DiagnosticKind::UnexpectedFileName,
+        "unexpected-file-name",
+        Severity::Warning,
+    ),
+    (DiagnosticKind::NotAVault, "not-a-vault", Severity::Warning),
+];
+
+const PROPOSAL_KEYS: &str = "---\nproposed_by: claude\ndate: 2026-10-20T14:32\ncontext: c\ntarget: notes/a.md\nwhy: w\n---\n";
+
+fn note_diagnostics(source: &str) -> Vec<Diagnostic> {
+    parse_note(Path::new("notes/a.md"), source).diagnostics
+}
+
+fn proposal_diagnostics(name: &str, source: &str) -> Vec<Diagnostic> {
+    parse_proposal(Path::new(&format!("inbox/{name}")), source).diagnostics
+}
+
+/// Diagnostics of an input that triggers `kind`, through the public API only.
+/// No `_` arm: a new kind without a trigger does not compile.
+fn trigger(kind: DiagnosticKind) -> Vec<Diagnostic> {
+    const NAME: &str = "2026-10-20T1432-claude-x.md";
+    let qa = ":::qa\nQ\n---\nA\n:::\n";
+    match kind {
+        DiagnosticKind::InvalidFrontmatter => note_diagnostics("---\n- a\n---\n"),
+        DiagnosticKind::UnclosedBlock => note_diagnostics(":::qa\nQ\n"),
+        DiagnosticKind::InvalidBlockHeader => note_diagnostics("::: qa\n:::\n"),
+        DiagnosticKind::UnknownBlockType => note_diagnostics(":::note\n:::\n"),
+        DiagnosticKind::MalformedId => note_diagnostics(":::qa {#c-1}\nQ\n---\nA\n:::\n"),
+        DiagnosticKind::MissingSeparator => note_diagnostics(":::qa\nQ\n:::\n"),
+        DiagnosticKind::EmptyFace => note_diagnostics(":::qa\n---\nA\n:::\n"),
+        DiagnosticKind::NoClozeDeletion => note_diagnostics(":::cloze\nx\n:::\n"),
+        DiagnosticKind::InvalidClozeDeletion => note_diagnostics(":::cloze\n{{c1::}}\n:::\n"),
+        DiagnosticKind::UnreadableFile => {
+            read_note(Path::new("/nonexistent/engramme/notes/a.md")).diagnostics
+        }
+        DiagnosticKind::MissingRequiredKey => proposal_diagnostics(NAME, qa),
+        DiagnosticKind::InvalidTarget => proposal_diagnostics(
+            NAME,
+            &format!("{}{qa}", PROPOSAL_KEYS.replace("notes/a.md", "../a.md")),
+        ),
+        DiagnosticKind::NoCard => proposal_diagnostics(NAME, &format!("{PROPOSAL_KEYS}prose\n")),
+        DiagnosticKind::TooManyCards => {
+            proposal_diagnostics(NAME, &format!("{PROPOSAL_KEYS}{}", qa.repeat(4)))
+        }
+        DiagnosticKind::IdInProposal => proposal_diagnostics(
+            NAME,
+            &format!("{PROPOSAL_KEYS}:::qa {{#c-91be0q}}\nQ\n---\nA\n:::\n"),
+        ),
+        DiagnosticKind::DuplicateId => {
+            let a = note("notes/a.md", &[":::qa {#c-91be0q}", "Q", "---", "A", ":::"]);
+            let b = note("notes/b.md", &[":::qa {#c-91be0q}", "Q", "---", "A", ":::"]);
+            duplicate_ids(&[a, b])
+        }
+        DiagnosticKind::ReservedBlockType => note_diagnostics(":::free\n:::\n"),
+        DiagnosticKind::NonConsecutiveClozeNumbers => {
+            note_diagnostics(":::cloze\n{{c2::x}}\n:::\n")
+        }
+        DiagnosticKind::UnclosedCodeFence => note_diagnostics("```\n:::qa\n"),
+        DiagnosticKind::UnexpectedFileName => {
+            proposal_diagnostics("misnamed.md", &format!("{PROPOSAL_KEYS}{qa}"))
+        }
+        DiagnosticKind::NotAVault => {
+            let dir = TempDir::new("empty-vault");
+            read_vault(dir.path()).diagnostics
+        }
+    }
+}
+
+#[test]
+fn every_diagnostic_kind_is_triggered() {
+    for (kind, _, _) in ALL_KINDS {
+        let diagnostics = trigger(kind);
+        assert!(
+            diagnostics.iter().any(|d| d.kind == kind),
+            "{kind:?} not triggered: {diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn codes_and_severities_are_stable() {
+    for (kind, code, severity) in ALL_KINDS {
+        assert_eq!(kind.code(), code);
+        assert_eq!(kind.severity(), severity, "{code}");
+        assert_eq!(serde_json::to_value(kind).unwrap(), serde_json::json!(code));
+    }
 }
