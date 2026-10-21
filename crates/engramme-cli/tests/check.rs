@@ -1,3 +1,15 @@
+//! CLI rules → tests
+//! - `run(args) -> exit code`, program name skipped, binary wiring and real environment: `usage_errors_exit_with_2`, `binary_wires_run`
+//! - help and version on stdout, exit 0: `help_goes_to_stdout`, `version_goes_to_stdout`
+//! - usage errors on stderr, exit 2: `usage_errors_exit_with_2`, `non_utf8_arguments_do_not_panic`
+//! - `--` ends options: `missing_path_is_a_diagnostic`
+//! - `ENGRAMME_DIR` used without paths, ignored with paths, unset, empty or not a directory: `engramme_dir_names_the_vault`, `paths_take_precedence_over_engramme_dir`, `missing_engramme_dir`, `engramme_dir_must_be_a_directory`
+//! - vault, lone note, lone inbox file: `broken_vault_reports_files_and_lines`, `lone_note_sees_only_its_own_ids`, `lone_inbox_file_is_a_proposal`, `example_inbox_file_alone`
+//! - output format, paths as given, order of paths, summary and plurals: `broken_vault_reports_files_and_lines`, `paths_are_checked_in_the_order_given`
+//! - exit 0 with warnings only, 1 with an error, unreadable path as a diagnostic: `warnings_alone_exit_with_0`, `broken_vault_reports_files_and_lines`, `missing_path_is_a_diagnostic`
+//! - §7: example vault exits 0, invalid fixture exits 1 with file and line: `example_vault_is_valid`, `example_vault_from_engramme_dir`, `binary_checks_the_example_vault`, `binary_reports_the_broken_vault`
+//! - example vault content and `.gitignore`: `example_vault_content`, `example_vault_ignores_the_cache`
+
 use std::ffi::OsStr;
 use std::process::Command;
 
