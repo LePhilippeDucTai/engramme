@@ -31,4 +31,4 @@ pub use model::{
 };
 pub use note::parse_note;
 pub use proposal::parse_proposal;
-pub use vault::{check_path, duplicate_ids, read_vault};
+pub use vault::{Checked, check_path, duplicate_ids, read_vault};

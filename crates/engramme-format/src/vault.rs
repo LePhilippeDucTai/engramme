@@ -4,6 +4,8 @@ use std::ffi::OsStr;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
+
 use crate::diagnostic::{Diagnostic, DiagnosticKind, Parsed};
 use crate::frontmatter::one_line;
 use crate::fs::{read_note, read_proposal};
@@ -104,28 +106,49 @@ pub fn read_vault(root: &Path) -> Parsed<Vault> {
     }
 }
 
+/// What [`check_path`] found.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Checked {
+    /// Files checked: the `.md` files read in a vault, 1 for a file, 0 when
+    /// the path cannot be read.
+    pub files: usize,
+    /// Diagnostics, sorted as described for [`check_path`].
+    pub diagnostics: Vec<Diagnostic>,
+}
+
 /// Checks a path given to `engramme check`. A directory is read as a vault by
 /// [`read_vault`]. A file is a proposal when its parent directory is named
 /// exactly `inbox`, else a note, which only sees its own duplicate ids. A
-/// path that cannot be read yields a single `unreadable-file` error.
-pub fn check_path(path: &Path) -> Vec<Diagnostic> {
+/// path that cannot be read yields a single `unreadable-file` error. It also
+/// counts the files checked.
+pub fn check_path(path: &Path) -> Checked {
     let metadata = match std::fs::metadata(path) {
         Ok(metadata) => metadata,
         Err(err) => {
-            return vec![Diagnostic::new(
-                path,
-                1,
-                DiagnosticKind::UnreadableFile,
-                format!("cannot read file: {err}"),
-            )];
+            return Checked {
+                files: 0,
+                diagnostics: vec![Diagnostic::new(
+                    path,
+                    1,
+                    DiagnosticKind::UnreadableFile,
+                    format!("cannot read file: {err}"),
+                )],
+            };
         }
     };
     if metadata.is_dir() {
-        return read_vault(path).diagnostics;
+        let parsed = read_vault(path);
+        return Checked {
+            files: parsed.value.notes.len() + parsed.value.proposals.len(),
+            diagnostics: parsed.diagnostics,
+        };
     }
     let absolute = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
     if absolute.parent().and_then(Path::file_name) == Some(OsStr::new("inbox")) {
-        return read_proposal(path).diagnostics;
+        return Checked {
+            files: 1,
+            diagnostics: read_proposal(path).diagnostics,
+        };
     }
     let Parsed {
         value: note,
@@ -133,7 +156,10 @@ pub fn check_path(path: &Path) -> Vec<Diagnostic> {
     } = read_note(path);
     diagnostics.extend(duplicate_ids(std::slice::from_ref(&note)));
     diagnostics.sort_by_key(|d| d.line);
-    diagnostics
+    Checked {
+        files: 1,
+        diagnostics,
+    }
 }
 
 /// Adds to `files` the `.md` files of `dir`, by name, descending into

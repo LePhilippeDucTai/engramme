@@ -8,6 +8,7 @@
 //! - missing or unreadable directories: `missing_directories`, `unreadable_vault_paths`
 //! - duplicate ids among notes: `duplicate_ids_across_notes`, `duplicate_ids_within_a_note`, `every_later_occurrence_cites_the_first`, `qa_and_cloze_share_ids`, `cards_without_id_are_not_duplicates`, `proposal_ids_are_not_duplicates`, `duplicate_messages`
 //! - role of a lone file: `check_path_by_role`, `check_path_finds_duplicates_in_a_lone_note`
+//! - files counted by `check_path`: `check_path_counts_files`
 //!
 //! §5 diagnostic → code → tests
 //! - unclosed block → `unclosed-block` → `unclosed_block_at_eof` (notes.rs)
@@ -541,7 +542,8 @@ fn check_path_by_role() {
             ("Inbox/2026-10-20T1432-claude-x.md", qa),
         ],
     );
-    let proposal = check_path(&temp.path().join("vault/inbox/2026-10-20T1432-claude-x.md"));
+    let proposal =
+        check_path(&temp.path().join("vault/inbox/2026-10-20T1432-claude-x.md")).diagnostics;
     assert_eq!(codes(&proposal), [(1, "missing-required-key")]);
     assert!(
         proposal[0]
@@ -555,14 +557,14 @@ fn check_path_by_role() {
         "x.md",
         "Inbox/2026-10-20T1432-claude-x.md",
     ] {
-        let diagnostics = check_path(&temp.path().join(note));
+        let diagnostics = check_path(&temp.path().join(note)).diagnostics;
         assert!(diagnostics.is_empty(), "{note}: {diagnostics:?}");
     }
     let vault = temp.path().join("vault");
-    let diagnostics = check_path(&vault);
+    let diagnostics = check_path(&vault).diagnostics;
     assert_eq!(diagnostics, read_vault(&vault).diagnostics);
     assert_eq!(codes(&diagnostics), [(1, "missing-required-key")]);
-    let missing = check_path(&temp.path().join("missing.md"));
+    let missing = check_path(&temp.path().join("missing.md")).diagnostics;
     assert_eq!(codes(&missing), [(1, "unreadable-file")]);
     assert!(
         missing[0].message.starts_with("cannot read file: "),
@@ -575,7 +577,7 @@ fn check_path_by_role() {
 fn check_path_finds_duplicates_in_a_lone_note() {
     let root = Path::new(FIXTURES).join("invalid");
     let lone = root.join("notes/a.md");
-    let diagnostics = check_path(&lone);
+    let diagnostics = check_path(&lone).diagnostics;
     assert_eq!(
         codes(&diagnostics),
         [(7, "duplicate-id"), (11, "unclosed-block")]
@@ -588,7 +590,11 @@ fn check_path_finds_duplicates_in_a_lone_note() {
         )
     );
     // Alone, `notes/a-b.md` does not see the `c-91be0q` of `notes/a/b.md`.
-    assert!(check_path(&root.join("notes/a-b.md")).is_empty());
+    assert!(
+        check_path(&root.join("notes/a-b.md"))
+            .diagnostics
+            .is_empty()
+    );
 }
 
 const ALL_KINDS: [(DiagnosticKind, &str, Severity); 21] = [
@@ -787,4 +793,24 @@ fn notes_directory_may_be_a_symlink() {
         .map(|n| n.title.as_str())
         .collect();
     assert_eq!(titles, ["A", "B"]);
+}
+
+#[test]
+fn check_path_counts_files() {
+    let fixtures = Path::new(FIXTURES);
+    let valid = check_path(&fixtures.join("valid"));
+    assert_eq!(valid.files, 3);
+    assert_eq!(
+        valid.diagnostics,
+        read_vault(&fixtures.join("valid")).diagnostics
+    );
+    assert_eq!(check_path(&fixtures.join("invalid")).files, 5);
+    assert_eq!(check_path(&fixtures.join("invalid/notes/a.md")).files, 1);
+    let temp = TempDir::new("count");
+    let missing = check_path(&temp.path().join("missing"));
+    assert_eq!(missing.files, 0);
+    assert_eq!(codes(&missing.diagnostics), [(1, "unreadable-file")]);
+    let empty = check_path(temp.path());
+    assert_eq!(empty.files, 0);
+    assert_eq!(codes(&empty.diagnostics), [(1, "not-a-vault")]);
 }
