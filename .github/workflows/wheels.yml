@@ -75,6 +75,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           pattern: wheel-*
@@ -84,7 +85,9 @@ jobs:
         run: ls dist/engramme-"${GITHUB_REF_NAME#v}"-*.whl
       - uses: softprops/action-gh-release@v3
         with:
-          # The capture skill will be attached next to the wheels.
-          files: dist/*.whl
+          files: |
+            dist/*.whl
+            skill/SKILL.md
+            skill/INSTALL.md
           fail_on_unmatched_files: true
           generate_release_notes: true
