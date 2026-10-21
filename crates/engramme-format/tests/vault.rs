@@ -4,7 +4,7 @@
 //! Vault rules → tests
 //! - walk `notes/` recursively and `inbox/` flat, skip hidden entries, non-`.md` files, `.app/` and other root files: `walk_ignores_hidden_non_md_app_and_inbox_subdirectories`, `vault_fixtures_match_snapshots`
 //! - deterministic order, by path components: `walk_order_follows_path_components`, `vault_diagnostics_are_sorted_by_file_then_line`
-//! - symbolic links followed only to regular files: `symlinks_are_followed_only_to_files`
+//! - symbolic links followed only to regular files, except `notes/` and `inbox/` themselves: `symlinks_are_followed_only_to_files`, `notes_directory_may_be_a_symlink`
 //! - missing or unreadable directories: `missing_directories`, `unreadable_vault_paths`
 //! - duplicate ids among notes: `duplicate_ids_across_notes`, `duplicate_ids_within_a_note`, `every_later_occurrence_cites_the_first`, `qa_and_cloze_share_ids`, `cards_without_id_are_not_duplicates`, `proposal_ids_are_not_duplicates`, `duplicate_messages`
 //! - role of a lone file: `check_path_by_role`, `check_path_finds_duplicates_in_a_lone_note`
@@ -758,4 +758,33 @@ fn codes_and_severities_are_stable() {
         assert_eq!(kind.severity(), severity, "{code}");
         assert_eq!(serde_json::to_value(kind).unwrap(), serde_json::json!(code));
     }
+}
+
+/// `notes/` and `inbox/` themselves may be links to directories (e.g. a synced
+/// folder); only links met during the walk are restricted to regular files.
+#[test]
+#[cfg(unix)]
+fn notes_directory_may_be_a_symlink() {
+    let temp = TempDir::new("notes-symlink");
+    write_files(
+        temp.path(),
+        &[
+            ("synced/a.md", "# A\n"),
+            ("synced/sub/b.md", "# B\n"),
+            ("vault/inbox/.keep", ""),
+        ],
+    );
+    let root = temp.path().join("vault");
+    std::os::unix::fs::symlink(temp.path().join("synced"), root.join("notes")).unwrap();
+    std::os::unix::fs::symlink(temp.path().join("synced"), temp.path().join("synced/loop"))
+        .unwrap();
+    let parsed = read_vault(&root);
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    let titles: Vec<&str> = parsed
+        .value
+        .notes
+        .iter()
+        .map(|n| n.title.as_str())
+        .collect();
+    assert_eq!(titles, ["A", "B"]);
 }
