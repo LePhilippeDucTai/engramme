@@ -2,6 +2,8 @@
 //! - At least three format examples, including two notes and one proposal: `format_examples_pass_check`
 //! - Complete examples pass check without diagnostics and each contains cards: `format_examples_pass_check`
 //! - Every parser diagnostic code is documented: `format_documents_every_code`
+//! - SKILL.md reads as a note without diagnostics; its frontmatter has only `name` and `description`, within Agent Skills limits: `skill_frontmatter_follows_agent_skills`
+//! - The skill holds one example, a proposal by `claude` with 1 to 3 cards that passes check: `skill_template_passes_check`
 
 use std::collections::HashSet;
 use std::ffi::OsStr;
@@ -163,4 +165,59 @@ fn format_documents_every_code() {
             "undocumented code: {code}"
         );
     }
+}
+
+#[test]
+fn skill_frontmatter_follows_agent_skills() {
+    let parsed = engramme_format::parse_note(Path::new("SKILL.md"), &read("../../skill/SKILL.md"));
+    let diagnostics: Vec<String> = parsed.diagnostics.iter().map(ToString::to_string).collect();
+    assert!(
+        diagnostics.is_empty(),
+        "SKILL.md as a note: {diagnostics:#?}"
+    );
+    let frontmatter = &parsed.value.frontmatter;
+    assert_eq!(frontmatter.title, None);
+    assert!(frontmatter.tags.is_empty() && frontmatter.sources.is_empty());
+    let mut keys: Vec<&str> = frontmatter.extra.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(keys, ["description", "name"]);
+    assert_eq!(frontmatter.extra["name"].as_str(), Some("engramme-capture"));
+    let description = frontmatter.extra["description"]
+        .as_str()
+        .expect("`description` must be a string");
+    assert!(
+        (1..=1024).contains(&description.chars().count()),
+        "`description` must have 1 to 1024 characters"
+    );
+    assert_eq!(
+        description,
+        description.trim(),
+        "`description` must not start or end with blanks"
+    );
+}
+
+#[test]
+fn skill_template_passes_check() {
+    let files = examples(&read("../../skill/SKILL.md"));
+    assert_eq!(
+        files.len(),
+        1,
+        "SKILL.md must hold exactly one complete example"
+    );
+    assert!(
+        files[0].0.starts_with("inbox/"),
+        "the SKILL.md example must be a proposal under inbox/"
+    );
+    let root = vault("skill_template_passes_check", &files);
+    assert_eq!(check(&root), (0, clean(1), String::new()));
+    let parsed = engramme_format::read_vault(&root);
+    let [proposal] = parsed.value.proposals.as_slice() else {
+        panic!("the SKILL.md example must be read as one proposal");
+    };
+    assert!(
+        (1..=3).contains(&proposal.cards.len()),
+        "the SKILL.md example must have 1 to 3 cards"
+    );
+    assert_eq!(proposal.frontmatter.proposed_by.as_deref(), Some("claude"));
+    std::fs::remove_dir_all(root).unwrap();
 }
