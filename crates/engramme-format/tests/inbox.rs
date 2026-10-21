@@ -396,3 +396,186 @@ fn proposal_frontmatter_messages() {
         assert_eq!(messages(&parsed), [format!("{PATH}:{expected}")]);
     }
 }
+
+/// A proposal with the five keys (lines 1 to 7) followed by `body`.
+fn with_body(body: &[&str]) -> Parsed<InboxProposal> {
+    with_body_at(PATH, body)
+}
+
+fn with_body_at(path: &str, body: &[&str]) -> Parsed<InboxProposal> {
+    let mut lines = vec!["---"];
+    lines.extend_from_slice(&KEYS);
+    lines.push("---");
+    lines.extend_from_slice(body);
+    parse_proposal(Path::new(path), &format!("{}\n", lines.join("\n")))
+}
+
+fn blocks(n: usize) -> Vec<&'static str> {
+    QA.iter().copied().cycle().take(5 * n).collect()
+}
+
+#[test]
+fn card_blocks_count_from_one_to_three() {
+    for n in 1..=3 {
+        let parsed = with_body(&blocks(n));
+        assert!(
+            parsed.diagnostics.is_empty(),
+            "{n}: {:?}",
+            parsed.diagnostics
+        );
+        assert_eq!(parsed.value.cards.len(), n);
+    }
+    let faulty = with_body(&[":::qa", "no separator", ":::", ":::qa", "never closed"]);
+    assert_eq!(
+        codes(&faulty),
+        vec![(8, "missing-separator"), (11, "unclosed-block")]
+    );
+    let mut body = blocks(3);
+    body.extend_from_slice(&[":::free", "later", ":::", ":::note", ":::"]);
+    let reserved = with_body(&body);
+    assert_eq!(
+        codes(&reserved),
+        vec![(23, "reserved-block-type"), (26, "unknown-block-type")]
+    );
+}
+
+#[test]
+fn no_card_is_an_error() {
+    let prose = with_body(&["Only prose."]);
+    assert_eq!(codes(&prose), vec![(1, "no-card")]);
+    let estimate = with_body(&[":::estimate", "How many?", ":::"]);
+    assert_eq!(
+        codes(&estimate),
+        vec![(1, "no-card"), (8, "reserved-block-type")]
+    );
+    let fenced = with_body(&["```", ":::qa", "Q", "---", "A", ":::", "```"]);
+    assert_eq!(codes(&fenced), vec![(1, "no-card")]);
+}
+
+#[test]
+fn more_than_three_cards_is_an_error() {
+    let four = with_body(&blocks(4));
+    assert_eq!(codes(&four), vec![(23, "too-many-cards")]);
+    assert!(four.diagnostics[0].message.contains("has 4 card blocks"));
+    let five = with_body(&blocks(5));
+    assert_eq!(codes(&five), vec![(23, "too-many-cards")]);
+    assert!(five.diagnostics[0].message.contains("has 5 card blocks"));
+    let mut body = blocks(3);
+    body.extend_from_slice(&[":::qa", "no separator", ":::"]);
+    let faulty_fourth = with_body(&body);
+    assert_eq!(
+        codes(&faulty_fourth),
+        vec![(23, "missing-separator"), (23, "too-many-cards")]
+    );
+}
+
+#[test]
+fn id_in_proposal_is_an_error() {
+    let valid = with_body(&[":::qa {#c-91be0q}", "Q", "---", "A", ":::"]);
+    assert_eq!(codes(&valid), vec![(8, "id-in-proposal")]);
+    assert!(valid.value.cards.is_empty());
+    let malformed = with_body(&[":::qa {#c-12}", "Q", "---", "A", ":::"]);
+    assert_eq!(
+        codes(&malformed),
+        vec![(8, "malformed-id"), (8, "id-in-proposal")]
+    );
+    let mut body = vec![":::free {#c-abc123}", ":::"];
+    body.extend_from_slice(&QA);
+    let reserved = with_body(&body);
+    assert_eq!(
+        codes(&reserved),
+        vec![(8, "reserved-block-type"), (8, "id-in-proposal")]
+    );
+    let empty = with_body(&[":::qa {#}", "Q", "---", "A", ":::"]);
+    assert_eq!(
+        empty.diagnostics.last().map(|d| d.message.as_str()),
+        Some("card id `{#}` is not allowed in a proposal: remove it, only the app assigns ids")
+    );
+}
+
+#[test]
+fn file_name_convention() {
+    for name in [
+        "2026-10-20T1432-copilot-ifrs9-staging.md",
+        "2026-10-20T1432-copilot-ifrs9-staging-2.md",
+        "2024-02-29T0000-claude-leap.md",
+        "2026-10-20T1432-z1-x.md",
+    ] {
+        let parsed = with_body_at(&format!("inbox/{name}"), &QA);
+        assert!(
+            parsed.diagnostics.is_empty(),
+            "{name}: {:?}",
+            parsed.diagnostics
+        );
+    }
+    for name in [
+        "ifrs9-staging.md",
+        "2026-10-20T14:32-claude-x.md",
+        "2026-10-20t1432-claude-x.md",
+        "2026-10-20T1432-claude.md",
+        "2026-10-20T1432-claude-.md",
+        "2026-10-20T1432-claude--x.md",
+        "2026-10-20T1432-Claude-x.md",
+        "2026-10-20T1432-claude-été.md",
+        "2026-10-20T1432-claude_x.md",
+        "2026-02-30T1432-claude-x.md",
+        "2026-10-20T2400-claude-x.md",
+        "2026-10-20T1432-claude-x.MD",
+        "2026-10-2é-claude-x.md",
+    ] {
+        let parsed = with_body_at(&format!("inbox/{name}"), &QA);
+        assert_eq!(codes(&parsed), vec![(1, "unexpected-file-name")], "{name}");
+        assert!(!parsed.has_errors(), "{name}");
+    }
+}
+
+#[test]
+fn proposal_body_messages() {
+    let mut ids = vec![":::qa {#c-91be0q}", "Q", "---", "A", ":::"];
+    ids.extend_from_slice(&QA);
+    let cases = [
+        (
+            with_body(&["Only prose."]),
+            format!("{PATH}:1: error: proposal has no `qa` or `cloze` block: add 1 to 3 cards [no-card]"),
+        ),
+        (
+            with_body(&blocks(4)),
+            format!("{PATH}:23: error: proposal has 4 card blocks: at most 3 are allowed [too-many-cards]"),
+        ),
+        (
+            with_body(&ids),
+            format!("{PATH}:8: error: card id `{{#c-91be0q}}` is not allowed in a proposal: remove it, only the app assigns ids [id-in-proposal]"),
+        ),
+        (
+            with_body_at("inbox/bad.md", &QA),
+            "inbox/bad.md:1: warning: proposal file name `bad.md` does not match `<YYYY-MM-DD>T<HHMM>-<agent>-<topic>.md` [unexpected-file-name]".to_owned(),
+        ),
+    ];
+    for (parsed, expected) in cases {
+        assert_eq!(messages(&parsed), [expected]);
+    }
+}
+
+#[test]
+fn proposal_diagnostics_are_sorted_by_line() {
+    let mut lines = vec!["---"];
+    lines.extend_from_slice(&KEYS[..4]);
+    lines.push("---");
+    lines.extend_from_slice(&[":::qa {#c-91be0q}", "Q", "---", "A", ":::"]);
+    lines.extend_from_slice(&[":::qa", "no separator", ":::"]);
+    lines.extend_from_slice(&blocks(2));
+    let parsed = parse_proposal(
+        Path::new("inbox/bad.md"),
+        &format!("{}\n", lines.join("\n")),
+    );
+    assert_eq!(
+        codes(&parsed),
+        vec![
+            (1, "unexpected-file-name"),
+            (1, "missing-required-key"),
+            (7, "id-in-proposal"),
+            (12, "missing-separator"),
+            (20, "too-many-cards"),
+        ]
+    );
+}

@@ -51,12 +51,20 @@ pub enum DiagnosticKind {
     MissingRequiredKey,
     /// The `target` of a proposal is not a `.md` path under `notes/`.
     InvalidTarget,
+    /// A proposal has no `qa` or `cloze` block.
+    NoCard,
+    /// A proposal has more than 3 card blocks.
+    TooManyCards,
+    /// A proposal card has an `{#<id>}`: only the app assigns ids.
+    IdInProposal,
     /// The card type is reserved for a future version.
     ReservedBlockType,
     /// Cloze numbers skip a value.
     NonConsecutiveClozeNumbers,
     /// A code fence is never closed.
     UnclosedCodeFence,
+    /// A proposal file name does not follow `<YYYY-MM-DD>T<HHMM>-<agent>-<topic>.md`.
+    UnexpectedFileName,
 }
 
 impl DiagnosticKind {
@@ -75,9 +83,13 @@ impl DiagnosticKind {
             DiagnosticKind::UnreadableFile => "unreadable-file",
             DiagnosticKind::MissingRequiredKey => "missing-required-key",
             DiagnosticKind::InvalidTarget => "invalid-target",
+            DiagnosticKind::NoCard => "no-card",
+            DiagnosticKind::TooManyCards => "too-many-cards",
+            DiagnosticKind::IdInProposal => "id-in-proposal",
             DiagnosticKind::ReservedBlockType => "reserved-block-type",
             DiagnosticKind::NonConsecutiveClozeNumbers => "non-consecutive-cloze-numbers",
             DiagnosticKind::UnclosedCodeFence => "unclosed-code-fence",
+            DiagnosticKind::UnexpectedFileName => "unexpected-file-name",
         }
     }
 
@@ -86,7 +98,8 @@ impl DiagnosticKind {
         match self {
             DiagnosticKind::ReservedBlockType
             | DiagnosticKind::NonConsecutiveClozeNumbers
-            | DiagnosticKind::UnclosedCodeFence => Severity::Warning,
+            | DiagnosticKind::UnclosedCodeFence
+            | DiagnosticKind::UnexpectedFileName => Severity::Warning,
             _ => Severity::Error,
         }
     }

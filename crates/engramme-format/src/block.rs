@@ -15,6 +15,40 @@ pub(crate) struct Scan<'a> {
     pub(crate) prose: Vec<Line<'a>>,
     /// Diagnostics, in the order they were found.
     pub(crate) diagnostics: Vec<Diagnostic>,
+    /// One header per opening line, in file order, unclosed blocks included.
+    pub(crate) headers: Vec<Header<'a>>,
+}
+
+/// The parts of an opening line `:::<type> {#<id>}`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Header<'a> {
+    /// Line of the opening line.
+    pub(crate) line: usize,
+    /// Text right after `:::` up to a blank or `{`; empty when missing.
+    pub(crate) card_type: &'a str,
+    /// The rest after the type, without leading or trailing blanks.
+    pub(crate) suite: &'a str,
+}
+
+impl<'a> Header<'a> {
+    /// Splits an opening line.
+    pub(crate) fn of(line: &Line<'a>) -> Header<'a> {
+        let rest = header_text(line).get(3..).unwrap_or_default();
+        let end = rest
+            .find(|c: char| BLANKS.contains(&c) || c == '{')
+            .unwrap_or(rest.len());
+        let (card_type, suite) = rest.split_at(end);
+        Header {
+            line: line.number,
+            card_type,
+            suite: suite.trim_start_matches(BLANKS),
+        }
+    }
+
+    /// Text between `{#` and the final `}`, even when malformed.
+    pub(crate) fn id_text(&self) -> Option<&'a str> {
+        self.suite.strip_prefix("{#")?.strip_suffix('}')
+    }
 }
 
 /// Splits `lines` into card blocks and prose, and parses each closed block.
@@ -27,6 +61,7 @@ pub(crate) fn scan<'a>(path: &Path, lines: &[Line<'a>]) -> Scan<'a> {
             cards: Vec::new(),
             prose: Vec::new(),
             diagnostics: Vec::new(),
+            headers: Vec::new(),
         },
     };
     for &line in lines {
@@ -88,6 +123,7 @@ impl<'a> Scanner<'_, 'a> {
                         ),
                     );
                 }
+                self.scan.headers.push(Header::of(&line));
                 self.block = Some(Block {
                     opening: line,
                     body: Vec::new(),
@@ -111,7 +147,7 @@ impl<'a> Scanner<'_, 'a> {
     /// Parses a block whose closing line was just seen.
     fn close(&mut self, block: Block<'a>) {
         let first = self.scan.diagnostics.len();
-        let Some((body_type, id)) = self.parse_header(&block.opening) else {
+        let Some((body_type, id)) = self.parse_header(&Header::of(&block.opening)) else {
             return;
         };
         let kind = match body_type {
@@ -144,14 +180,9 @@ impl<'a> Scanner<'_, 'a> {
 
     /// Parses an opening line `:::<type> {#<id>}`. Returns the type and the
     /// identifier when the body must be parsed.
-    fn parse_header(&mut self, opening: &Line) -> Option<(BodyType, Option<CardId>)> {
-        let line = opening.number;
-        let rest = header_text(opening).strip_prefix(":::")?;
-        let end = rest
-            .find(|c: char| BLANKS.contains(&c) || c == '{')
-            .unwrap_or(rest.len());
-        let (card_type, suite) = rest.split_at(end);
-        let suite = suite.trim_start_matches(BLANKS);
+    fn parse_header(&mut self, header: &Header) -> Option<(BodyType, Option<CardId>)> {
+        let line = header.line;
+        let (card_type, suite) = (header.card_type, header.suite);
         if card_type.is_empty() {
             self.report(
                 line,
@@ -162,7 +193,7 @@ impl<'a> Scanner<'_, 'a> {
         }
         let mut id = None;
         let mut valid_header = true;
-        if let Some(content) = suite.strip_prefix("{#").and_then(|s| s.strip_suffix('}')) {
+        if let Some(content) = header.id_text() {
             id = CardId::parse(content);
             if id.is_none() {
                 self.report(

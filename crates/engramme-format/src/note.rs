@@ -25,6 +25,7 @@ pub fn parse_note(path: &Path, source: &str) -> Parsed<Note> {
         cards,
         prose,
         diagnostics: block_diagnostics,
+        ..
     } = block::scan(path, split.body);
     diagnostics.extend(block_diagnostics);
     let title = frontmatter
