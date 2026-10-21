@@ -9,7 +9,8 @@ format. The same file works for Claude Code, OpenAI Codex and GitHub Copilot.
   [the format](../docs/format.md)).
 - `ENGRAMME_DIR`, the absolute path of the vault, set in the environment the
   agents start from.
-  - macOS (zsh): `echo 'export ENGRAMME_DIR="$HOME/vault"' >> ~/.zshenv`
+  - macOS (zsh): `printf '\nexport ENGRAMME_DIR="$HOME/vault"\n' >> ~/.zshenv`
+    (the leading newline protects a last line without a final newline)
   - Windows (PowerShell, untested):
     `[Environment]::SetEnvironmentVariable('ENGRAMME_DIR', "$HOME\vault", 'User')`,
     then reopen your terminals and VS Code.
